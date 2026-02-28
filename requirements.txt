@@ -1,0 +1,32 @@
+# Core training dependencies (RTX 5090 machine)
+torch>=2.4.0
+transformers>=4.45.0
+trl>=0.12.0
+peft>=0.13.0
+bitsandbytes>=0.44.0
+datasets>=3.0.0
+accelerate>=1.0.0
+
+# Azure AI Foundry (data generation)
+openai>=1.50.0
+azure-identity>=1.18.0
+python-dotenv>=1.0.0
+
+# Mistral tokenizer (for vLLM + Ministral 3 models)
+mistral-common>=1.8.6
+
+# Web search
+ddgs>=6.0.0
+
+# Bridge server
+fastapi>=0.115.0
+uvicorn>=0.32.0
+httpx>=0.27.0
+websockets>=13.0
+
+# Reachy SDK (install on Orin Nano)
+# reachy2-sdk>=1.0.0
+
+# Utilities
+pydantic>=2.0.0
+numpy>=1.26.0
