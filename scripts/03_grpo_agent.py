@@ -17,10 +17,15 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
 import torch
+from dotenv import load_dotenv
+load_dotenv()
+
+import wandb
 from datasets import Dataset
 from peft import LoraConfig, TaskType
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -321,6 +326,9 @@ def main():
     parser.add_argument("--batch-size", type=int, default=2, help="Per-device batch size")
     parser.add_argument("--num-generations", type=int, default=4, help="Completions per prompt for GRPO")
     parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate (lower for RL)")
+    parser.add_argument("--wandb-project", type=str, default=os.getenv("WANDB_PROJECT", "reachy-copilot"), help="W&B project name")
+    parser.add_argument("--wandb-run-name", type=str, default=None, help="W&B run name (auto-generated if not set)")
+    parser.add_argument("--no-wandb", action="store_true", help="Disable W&B logging")
     args = parser.parse_args()
 
     output_path = Path(args.output)
@@ -334,6 +342,31 @@ def main():
         gpu_name = torch.cuda.get_device_name(0)
         gpu_mem = torch.cuda.get_device_properties(0).total_mem / 1e9
         print(f"🖥️  GPU: {gpu_name} ({gpu_mem:.1f} GB)")
+
+    # ─── Initialize Weights & Biases ───────────────────────────────────────
+    use_wandb = not args.no_wandb and os.getenv("WANDB_API_KEY")
+    if use_wandb:
+        run_name = args.wandb_run_name or f"grpo-{Path(args.model).name}-g{args.num_generations}-lr{args.lr}"
+        wandb.init(
+            project=args.wandb_project,
+            name=run_name,
+            config={
+                "task": "grpo",
+                "sft_checkpoint": args.model,
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "num_generations": args.num_generations,
+                "learning_rate": args.lr,
+                "lora_rank": 16,
+                "loss_type": "dapo",
+                "reward_functions": ["format_correctness", "tool_relevance", "response_quality", "thinking_quality"],
+                "gpu": gpu_name if torch.cuda.is_available() else "none",
+            },
+            tags=["grpo", "rl", "tool-calling", "reachy-copilot", "hackathon"],
+        )
+        print(f"   📊 W&B run: {wandb.run.url}")
+    else:
+        print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
 
     # ─── Load tokenizer ──────────────────────────────────────────────────
     print(f"\n📦 Loading tokenizer from {args.model}...")
@@ -388,7 +421,7 @@ def main():
         save_strategy="epoch",
         bf16=True,
         gradient_checkpointing=True,
-        report_to="none",
+        report_to="wandb" if use_wandb else "none",
         seed=42,
         # GRPO-specific
         loss_type="dapo",                        # DAPO loss — no length bias
@@ -423,6 +456,18 @@ def main():
     print(f"\n💾 Saving GRPO model to {args.output}...")
     trainer.save_model(str(output_path))
     tokenizer.save_pretrained(str(output_path))
+
+    # Log final info to W&B
+    if use_wandb:
+        artifact = wandb.Artifact(
+            name=f"grpo-{Path(args.model).name}",
+            type="model",
+            metadata={"sft_checkpoint": args.model, "epochs": args.epochs},
+        )
+        artifact.add_dir(str(output_path))
+        wandb.log_artifact(artifact)
+        wandb.finish()
+        print("   📊 W&B run finished & model artifact saved")
 
     print("\n✅ GRPO training complete!")
     print(f"   Model saved to: {args.output}")

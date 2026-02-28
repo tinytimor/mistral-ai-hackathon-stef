@@ -15,6 +15,9 @@ python-dotenv>=1.0.0
 # Mistral tokenizer (for vLLM + Ministral 3 models)
 mistral-common>=1.8.6
 
+# Experiment tracking
+wandb>=0.18.0
+
 # Web search
 ddgs>=6.0.0
 

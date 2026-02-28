@@ -19,6 +19,10 @@ import os
 from pathlib import Path
 
 import torch
+from dotenv import load_dotenv
+load_dotenv()
+
+import wandb
 from datasets import Dataset
 from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
 from transformers import (
@@ -30,9 +34,7 @@ from transformers import (
 from trl import SFTConfig, SFTTrainer
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
-BASE_MODEL = "mistralai/Ministral-8B-Instruct-2410"  # Mistral's smallest instruct model
-# If you have access to Ministral-3B, use: "mistralai/Ministral-3B-Instruct-2410"
-# Fallback open model: "mistralai/Mistral-7B-Instruct-v0.3"
+BASE_MODEL = os.getenv("BASE_MODEL", "mistralai/Ministral-3-8B-Instruct-2512")
 
 # ─── QLoRA Configuration (4-bit quantization for memory efficiency) ──────────
 QLORA_CONFIG = BitsAndBytesConfig(
@@ -136,6 +138,9 @@ def main():
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
     parser.add_argument("--max-seq-len", type=int, default=2048, help="Maximum sequence length")
     parser.add_argument("--lora-r", type=int, default=32, help="LoRA rank")
+    parser.add_argument("--wandb-project", type=str, default=os.getenv("WANDB_PROJECT", "reachy-copilot"), help="W&B project name")
+    parser.add_argument("--wandb-run-name", type=str, default=None, help="W&B run name (auto-generated if not set)")
+    parser.add_argument("--no-wandb", action="store_true", help="Disable W&B logging")
     args = parser.parse_args()
 
     output_path = Path(args.output)
@@ -152,6 +157,35 @@ def main():
         print(f"🖥️  GPU: {gpu_name} ({gpu_mem:.1f} GB)")
     else:
         print("⚠️  No GPU detected! This will be very slow.")
+
+    # ─── Initialize Weights & Biases ───────────────────────────────────────
+    use_wandb = not args.no_wandb and os.getenv("WANDB_API_KEY")
+    if use_wandb:
+        run_name = args.wandb_run_name or f"sft-{Path(args.base_model).name}-r{args.lora_r}-ep{args.epochs}-lr{args.lr}"
+        wandb.init(
+            project=args.wandb_project,
+            name=run_name,
+            config={
+                "task": "sft-qlora",
+                "base_model": args.base_model,
+                "lora_rank": args.lora_r,
+                "lora_alpha": args.lora_r * 2,
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "grad_accum": args.grad_accum,
+                "effective_batch_size": args.batch_size * args.grad_accum,
+                "learning_rate": args.lr,
+                "max_seq_len": args.max_seq_len,
+                "quantization": "4-bit NF4",
+                "optimizer": "adamw_torch_fused",
+                "scheduler": "cosine",
+                "gpu": gpu_name if torch.cuda.is_available() else "none",
+            },
+            tags=["sft", "qlora", "mistral", "reachy-copilot", "hackathon"],
+        )
+        print(f"   📊 W&B run: {wandb.run.url}")
+    else:
+        print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
 
     # ─── Load tokenizer ──────────────────────────────────────────────────
     print(f"\n📦 Loading tokenizer from {args.base_model}...")
@@ -218,7 +252,7 @@ def main():
         max_seq_length=args.max_seq_len,
         packing=True,                       # Pack short sequences for efficiency
         dataset_text_field="text",
-        report_to="none",                   # Set to "wandb" if you want logging
+        report_to="wandb" if use_wandb else "none",  # W&B experiment tracking
         optim="adamw_torch_fused",          # Fused optimizer for speed
         dataloader_num_workers=4,
         seed=42,
@@ -259,6 +293,20 @@ def main():
     }
     with open(output_path / "training_info.json", "w") as f:
         json.dump(info, f, indent=2)
+
+    # Log final info to W&B
+    if use_wandb:
+        wandb.log({"num_samples": len(dataset), "final_epoch": args.epochs})
+        # Save model artifact
+        artifact = wandb.Artifact(
+            name=f"sft-{Path(args.base_model).name}",
+            type="model",
+            metadata=info,
+        )
+        artifact.add_dir(str(output_path))
+        wandb.log_artifact(artifact)
+        wandb.finish()
+        print("   📊 W&B run finished & model artifact saved")
 
     print("\n✅ SFT training complete!")
     print(f"   Model saved to: {args.output}")
