@@ -49,7 +49,7 @@ from dotenv import load_dotenv
 load_dotenv()  # loads from .env in current dir or parent dirs
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 
 # ─── Provider config ──────────────────────────────────────────────────────────
 # Supports three providers:
@@ -70,7 +70,7 @@ FOUNDRY_ENDPOINT = os.getenv("FOUNDRY_ENDPOINT", "")
 # Fallback: construct from resource name
 AZURE_RESOURCE = os.getenv("AZURE_RESOURCE_NAME", "")
 if not FOUNDRY_ENDPOINT and AZURE_RESOURCE:
-    FOUNDRY_ENDPOINT = f"https://{AZURE_RESOURCE}.openai.azure.com/openai/v1/"
+    FOUNDRY_ENDPOINT = f"https://{AZURE_RESOURCE}.cognitiveservices.azure.com/"
 
 # ─── Mistral La Plateforme API (api.mistral.ai) ─────────────────────────────
 # Sign up at https://console.mistral.ai/ — free tier includes API credits
@@ -760,13 +760,21 @@ def create_client(provider: str = None) -> OpenAI:
 
     api_key = os.getenv("FOUNDRY_API_KEY") or os.getenv("AZURE_API_KEY")
     if api_key:
-        return OpenAI(base_url=FOUNDRY_ENDPOINT, api_key=api_key)
+        return AzureOpenAI(
+            azure_endpoint=FOUNDRY_ENDPOINT,
+            api_key=api_key,
+            api_version="2024-12-01-preview",
+        )
     else:
         token_provider = get_bearer_token_provider(
             DefaultAzureCredential(),
             "https://cognitiveservices.azure.com/.default",
         )
-        return OpenAI(base_url=FOUNDRY_ENDPOINT, api_key=token_provider())
+        return AzureOpenAI(
+            azure_endpoint=FOUNDRY_ENDPOINT,
+            azure_ad_token_provider=token_provider,
+            api_version="2024-12-01-preview",
+        )
 
 
 def list_mistral_models():

@@ -1,0 +1,11 @@
+🔐 Connecting to Microsoft Foundry...
+   Model: Mistral-Large-3
+   Base URL: https://stefanlehman2-7147.openai.azure.com/openai/v1/
+   Role: TEACHER | Params: 675B total / 41B active | Context: 256,000
+
+🧪 Testing connection...
+   ❌ Connection failed: Connection error.
+
+   Make sure you've deployed Mistral-Large-3 at https://ai.azure.com
+   Set FOUNDRY_ENDPOINT or AZURE_RESOURCE_NAME in .env
+   Or run: az login (for Entra ID auth)

@@ -1,0 +1,72 @@
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0: Environment Verification[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:28:33 Python: Python 3.13.5
+[0;34m[INFO][0m  15:28:33 Activated venv
+[0;34m[INFO][0m  15:28:33 Checking CUDA and GPU...
+✅ GPU: NVIDIA GeForce RTX 5090
+   VRAM: 33.7 GB
+   CUDA: 12.8
+   Compute capability: sm_120
+   ✅ Blackwell architecture (sm_120) — RTX 5090 supported
+   ✅ BF16 supported — optimal for training
+[0;34m[INFO][0m  15:28:33 Checking Python packages...
+✅ All required packages installed
+[0;32m[✅][0m    15:28:37 W&B API key configured — experiments will be tracked
+[0;32m[✅][0m    15:28:37 HuggingFace token configured
+[0;32m[✅][0m    15:28:37 Environment verification complete!
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0.5: Model Download & Cache Check[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:28:37 Checking base model cache (needed for SFT training)...
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ✅ cached Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+         → /home/slehman/.cache/huggingface/hub/models--mistralai--Ministral-3-3B-Instruct-2512/snapshots/cfcb068fa7c44114cf77a462357c6cdcd2c304b4
+
+✅ Base model cached and ready for training!
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ✅ cached Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+         → /home/slehman/.cache/huggingface/hub/models--mistralai--Ministral-3-3B-Instruct-2512/snapshots/cfcb068fa7c44114cf77a462357c6cdcd2c304b4
+
+✅ Base model already cached!
+
+✅ Model download/check complete!
+[0;32m[✅][0m    15:28:37 Base models ready for training
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 1: Data Generation (Teacher → Student Distillation)[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:28:37 Generating 500 training samples...
+🔐 Connecting to Microsoft Foundry...
+   Model: Mistral-Large-3
+   Base URL: https://stefanlehman2-7147.openai.azure.com/openai/v1/
+   Role: TEACHER | Params: 675B total / 41B active | Context: 256,000
+
+🧪 Testing connection...
+   ❌ Connection failed: Connection error.
+
+   Make sure you've deployed Mistral-Large-3 at https://ai.azure.com
+   Set FOUNDRY_ENDPOINT or AZURE_RESOURCE_NAME in .env
+   Or run: az login (for Entra ID auth)
+[0;34m[INFO][0m  15:28:43 Pipeline FAILED after 0 minutes
