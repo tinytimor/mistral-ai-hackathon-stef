@@ -59,33 +59,33 @@ from pathlib import Path
 # Base models for training (HuggingFace format, need HF_TOKEN for gated models)
 TRAINING_MODELS = {
     "ministral-3b": {
-        "repo_id": "mistralai/Ministral-3B-Instruct-2412",
-        "description": "Ministral 3B — primary student model for SFT/GRPO",
-        "size_gb": 6.5,
-        "gated": True,
+        "repo_id": "mistralai/Ministral-3-3B-Instruct-2512",
+        "description": "Ministral 3 3B — primary student model for SFT/GRPO",
+        "size_gb": 6.9,
+        "gated": False,
     },
     "ministral-8b": {
-        "repo_id": "mistralai/Ministral-8B-Instruct-2412",
-        "description": "Ministral 8B — larger student model (if VRAM allows)",
+        "repo_id": "mistralai/Ministral-3-8B-Instruct-2512",
+        "description": "Ministral 3 8B — larger student model (if VRAM allows)",
         "size_gb": 16.0,
-        "gated": True,
+        "gated": False,
     },
 }
 
 # Pre-quantized GGUFs for direct deployment (no training needed)
 GGUF_MODELS = {
     "ministral-3b-q4": {
-        "repo_id": "bartowski/Ministral-3B-Instruct-2412-GGUF",
-        "filename": "Ministral-3B-Instruct-2412-Q4_K_M.gguf",
-        "description": "Ministral 3B Q4_K_M — tool-calling on Orin Nano",
-        "size_gb": 2.0,
+        "repo_id": "mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+        "filename": "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+        "description": "Ministral 3 3B Q4_K_M — tool-calling on Orin Nano",
+        "size_gb": 2.15,
         "gated": False,
     },
     "ministral-3b-q5": {
-        "repo_id": "bartowski/Ministral-3B-Instruct-2412-GGUF",
-        "filename": "Ministral-3B-Instruct-2412-Q5_K_M.gguf",
-        "description": "Ministral 3B Q5_K_M — higher quality, still fits Orin",
-        "size_gb": 2.4,
+        "repo_id": "mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+        "filename": "Ministral-3-3B-Instruct-2512-Q5_K_M.gguf",
+        "description": "Ministral 3 3B Q5_K_M — higher quality, still fits Orin",
+        "size_gb": 2.47,
         "gated": False,
     },
 }

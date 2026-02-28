@@ -1,0 +1,13 @@
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0: Environment Verification[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:15:29 Python: Python 3.13.5
+[0;34m[INFO][0m  15:15:29 Checking CUDA and GPU...
+Traceback (most recent call last):
+  File "<string>", line 10, in <module>
+    gpu_mem = torch.cuda.get_device_properties(0).total_mem / 1e9
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'torch._C._CudaDeviceProperties' object has no attribute 'total_mem'. Did you mean: 'total_memory'?
+[0;31m[❌][0m    15:15:31 GPU check failed

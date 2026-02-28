@@ -1,0 +1,67 @@
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0: Environment Verification[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:17:30 Python: Python 3.13.5
+[0;34m[INFO][0m  15:17:30 Activated venv
+[0;34m[INFO][0m  15:17:30 Checking CUDA and GPU...
+✅ GPU: NVIDIA GeForce RTX 5090
+   VRAM: 33.7 GB
+   CUDA: 12.8
+   Compute capability: sm_120
+   ✅ Blackwell architecture (sm_120) — RTX 5090 supported
+   ✅ BF16 supported — optimal for training
+[0;34m[INFO][0m  15:17:30 Checking Python packages...
+✅ All required packages installed
+[0;32m[✅][0m    15:17:34 W&B API key configured — experiments will be tracked
+[0;32m[✅][0m    15:17:34 HuggingFace token configured
+[0;32m[✅][0m    15:17:34 Environment verification complete!
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0.5: Model Download & Cache Check[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:17:34 Checking base model cache (needed for SFT training)...
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
+
+⚠️  Base model needs downloading. Run without --check-only.
+
+💡 mistralai/Ministral-3B-Instruct-2412 is a gated model.
+   1. Accept the license at: https://huggingface.co/mistralai/Ministral-3B-Instruct-2412
+   2. Set HF_TOKEN in your .env file
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
+
+
+⬇️  Downloading Ministral 3B — primary student model for SFT/GRPO...
+   This may take a while (~6 GB)...
+
+   Downloading full model mistralai/Ministral-3B-Instruct-2412...
+
+❌ Download failed: 404 Client Error. (Request ID: Root=1-69a34d5f-3eecda45024af5e432ce06cc;1403c7d6-a228-46f4-afa5-f241e679bbc4)
+
+Repository Not Found for url: https://huggingface.co/api/models/mistralai/Ministral-3B-Instruct-2412/revision/main.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+   💡 Make sure you've accepted the model license on HuggingFace
+[0;31m[❌][0m    15:17:35 Model download failed! Check HF_TOKEN and internet connection.
+[0;34m[INFO][0m  15:17:35 If you want to skip training and use a pre-quantized model:
+[0;34m[INFO][0m  15:17:35   ./run_experiments.sh --no-train

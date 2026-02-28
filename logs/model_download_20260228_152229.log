@@ -1,0 +1,29 @@
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+
+⚠️  Base model needs downloading. Run without --check-only.
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+
+
+⬇️  Downloading Ministral 3 3B — primary student model for SFT/GRPO...
+   This may take a while (~7 GB)...
+
+   Downloading full model mistralai/Ministral-3-3B-Instruct-2512...
+Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]Fetching 13 files:   8%|▊         | 1/13 [00:00<00:01,  8.48it/s]

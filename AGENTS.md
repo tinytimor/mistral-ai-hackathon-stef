@@ -570,9 +570,9 @@ We gratefully acknowledge:
 | Model | Provider | License | Role |
 |-------|----------|---------|------|
 | [Mistral Large 3](https://mistral.ai/) | Mistral AI | Mistral Research License | Teacher model for data generation |
-| [Ministral 3B Instruct](https://huggingface.co/mistralai/Ministral-3B-Instruct-2412) | Mistral AI | Apache 2.0 | Student model, fine-tuned for edge |
+| [Ministral 3 3B Instruct](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512) | Mistral AI | Apache 2.0 | Student model, fine-tuned for edge |
 | [Voxtral Mini 3B](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507) | Mistral AI | Apache 2.0 | Edge audio model (ASR + understanding) |
-| [Ministral 3B GGUF](https://huggingface.co/bartowski/Ministral-3B-Instruct-2412-GGUF) | bartowski (quantized) | Apache 2.0 | Pre-quantized for Ollama deployment |
+| [Ministral 3 3B GGUF](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF) | Mistral AI | Apache 2.0 | Pre-quantized for Ollama deployment |
 | [Voxtral Mini 3B GGUF](https://huggingface.co/mradermacher/Voxtral-Mini-3B-2507-GGUF) | mradermacher (quantized) | Apache 2.0 | Pre-quantized for edge audio |
 
 ### Libraries & Frameworks

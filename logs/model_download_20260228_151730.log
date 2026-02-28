@@ -1,0 +1,39 @@
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
+
+⚠️  Base model needs downloading. Run without --check-only.
+
+💡 mistralai/Ministral-3B-Instruct-2412 is a gated model.
+   1. Accept the license at: https://huggingface.co/mistralai/Ministral-3B-Instruct-2412
+   2. Set HF_TOKEN in your .env file
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
+
+
+⬇️  Downloading Ministral 3B — primary student model for SFT/GRPO...
+   This may take a while (~6 GB)...
+
+   Downloading full model mistralai/Ministral-3B-Instruct-2412...
+
+❌ Download failed: 404 Client Error. (Request ID: Root=1-69a34d5f-3eecda45024af5e432ce06cc;1403c7d6-a228-46f4-afa5-f241e679bbc4)
+
+Repository Not Found for url: https://huggingface.co/api/models/mistralai/Ministral-3B-Instruct-2412/revision/main.
+Please make sure you specified the correct `repo_id` and `repo_type`.
+If you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+   💡 Make sure you've accepted the model license on HuggingFace

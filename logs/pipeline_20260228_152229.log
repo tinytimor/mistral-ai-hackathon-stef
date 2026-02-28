@@ -1,0 +1,54 @@
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0: Environment Verification[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:22:29 Python: Python 3.13.5
+[0;34m[INFO][0m  15:22:29 Activated venv
+[0;34m[INFO][0m  15:22:29 Checking CUDA and GPU...
+✅ GPU: NVIDIA GeForce RTX 5090
+   VRAM: 33.7 GB
+   CUDA: 12.8
+   Compute capability: sm_120
+   ✅ Blackwell architecture (sm_120) — RTX 5090 supported
+   ✅ BF16 supported — optimal for training
+[0;34m[INFO][0m  15:22:30 Checking Python packages...
+✅ All required packages installed
+[0;32m[✅][0m    15:22:33 W&B API key configured — experiments will be tracked
+[0;32m[✅][0m    15:22:34 HuggingFace token configured
+[0;32m[✅][0m    15:22:34 Environment verification complete!
+
+[0;36m═══════════════════════════════════════════════════════════[0m
+[0;36m  PHASE 0.5: Model Download & Cache Check[0m
+[0;36m═══════════════════════════════════════════════════════════[0m
+
+[0;34m[INFO][0m  15:22:34 Checking base model cache (needed for SFT training)...
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+
+⚠️  Base model needs downloading. Run without --check-only.
+============================================================
+  📦 Reachy Copilot — Model Download & Cache Check
+============================================================
+
+============================================================
+  📦 Model Status (Training (HuggingFace format))
+============================================================
+
+  ⬇️  needs download Ministral 3 3B — primary student model for SFT/GRPO
+         mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
+
+
+⬇️  Downloading Ministral 3 3B — primary student model for SFT/GRPO...
+   This may take a while (~7 GB)...
+
+   Downloading full model mistralai/Ministral-3-3B-Instruct-2512...
+Fetching 13 files:   0%|          | 0/13 [00:00<?, ?it/s]Fetching 13 files:   8%|▊         | 1/13 [00:00<00:01,  8.48it/s]
