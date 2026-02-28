@@ -349,7 +349,11 @@ Mistral Large (Teacher)
     
 Ministral 3B/8B (Student)
     ↓ SFT with QLoRA (scripts/02_sft_qlora.py)
+    ↓   └─ Best-model checkpointing: 10% eval split, load_best_model_at_end
+    ↓   └─ Auto-selects lowest eval_loss across hyperparameter sweep
     ↓ GRPO with reward functions (scripts/03_grpo_agent.py)
+    ↓   └─ Checkpoint every 50 steps, save top 3
+    ↓   └─ Auto-selects highest reward score across configs
     ↓ Quantize to Q4_K_M GGUF (scripts/04_quantize_deploy.py)
     
 Deploy to Orin Nano via Ollama
@@ -378,6 +382,20 @@ All training tracked via **Weights & Biases**:
 - Project: `reachy-copilot`
 - Dashboard: https://wandb.ai/tinytimor/reachy-copilot
 - Metrics: loss, learning rate, gradient norms, reward scores, GPU utilization
+
+### Best-Model Checkpointing
+The pipeline automatically selects the best model from each sweep:
+
+| Phase | Metric | Strategy |
+|-------|--------|----------|
+| SFT | `eval_loss` (10% holdout) | `load_best_model_at_end=True`, lowest wins |
+| GRPO | `best_reward` | Checkpoint every 50 steps, highest wins |
+| Cross-run | `training_info.json` | `run_experiments.sh` compares all runs |
+
+### Resilient Pipeline
+- `set +e` after environment verification — individual failures don’t kill the pipeline
+- Each phase checks prerequisites before running (no data → skip SFT/GRPO)
+- Final summary reports total failure count alongside best models
 
 ---
 

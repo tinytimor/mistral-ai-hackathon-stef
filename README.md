@@ -143,6 +143,27 @@ nohup ./run_experiments.sh > pipeline.log 2>&1 & disown
 
 Tracked metrics: loss, learning rate, gradient norms, reward scores, GPU utilization, hyperparameters.
 
+### 📌 Best-Model Checkpointing
+
+The training pipeline automatically selects the best model across all experiment runs:
+
+- **SFT**: 10% eval holdout split → `load_best_model_at_end=True` → lowest `eval_loss` wins
+- **GRPO**: Checkpoints every 50 steps → highest `best_reward` score wins
+- **Cross-run comparison**: `run_experiments.sh` reads `training_info.json` from each run and auto-selects the winner
+
+Metrics saved in each model’s `training_info.json`:
+```json
+{"best_eval_loss": 0.42, "final_train_loss": 0.38, "best_model_checkpoint": "checkpoint-150"}
+```
+
+### 🛡️ Resilient Pipeline
+
+The experiment runner continues through failures instead of crashing:
+- Individual SFT/GRPO experiment failures are logged and skipped
+- Missing training data → training phases skipped, deployment phases still run
+- llama.cpp build failures → quantization skipped, model still available
+- Final summary shows total failure count for review
+
 ---
 
 ## 🧠 Multi-Agent Model Strategy

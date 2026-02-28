@@ -251,6 +251,12 @@ fi
 
 log_success "Environment verification complete!"
 
+# ─── Resilient Mode ───────────────────────────────────────────────────────────
+# Disable exit-on-error for training phases so individual experiment failures
+# don't kill the entire pipeline. Each phase checks its own prerequisites.
+set +e
+PIPELINE_FAILURES=0
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 0.5: Model Download & Cache Check
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -435,7 +441,9 @@ if [ "$SKIP_DATA" = false ]; then
         log_success "Generated $SAMPLE_COUNT training samples → $TRAINING_DATA"
     else
         log_error "Data generation failed — no output file created"
-        exit 1
+        log_warn "⏭️  SFT and GRPO phases will be skipped (no training data)"
+        PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+        TRAINING_DATA=""
     fi
 
     # Also try HuggingFace datasets if not quick mode
@@ -465,10 +473,14 @@ else
     fi
     if [ ! -f "$TRAINING_DATA" ]; then
         log_error "No training data found! Run without --skip-data first."
-        exit 1
+        log_warn "⏭️  SFT and GRPO phases will be skipped (no training data)"
+        PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+        TRAINING_DATA=""
     fi
+    if [ -n "$TRAINING_DATA" ] && [ -f "$TRAINING_DATA" ]; then
     SAMPLE_COUNT=$(wc -l < "$TRAINING_DATA" | tr -d ' ')
     log_info "Using existing data: $SAMPLE_COUNT samples from $TRAINING_DATA"
+    fi
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -498,6 +510,13 @@ fi
 BEST_SFT_MODEL=""
 BEST_SFT_NAME=""
 EXP_NUM=0
+
+# Skip SFT if no training data available
+if [ -z "${TRAINING_DATA:-}" ] || [ ! -f "${TRAINING_DATA:-/nonexistent}" ]; then
+    log_warn "⏭️  Skipping all SFT experiments — no training data available"
+    PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+    SFT_EXPERIMENTS=()
+fi
 
 run_sft_experiment() {
     local exp="$1"
@@ -537,21 +556,49 @@ for exp in "${SFT_EXPERIMENTS[@]}"; do
     log_info "━━━ SFT Experiment $EXP_NUM/${#SFT_EXPERIMENTS[@]}: $RUN_NAME ━━━"
 
     if run_sft_experiment "$exp"; then
-        # Track the first successful model as best (W&B will help pick the actual best)
+        # Compare eval_loss to find the actual best model
+        CANDIDATE_DIR="$MODEL_DIR/$RUN_NAME"
+        CANDIDATE_LOSS=$(python3 -c "
+import json, sys
+try:
+    info = json.load(open('$CANDIDATE_DIR/training_info.json'))
+    loss = info.get('best_eval_loss') or info.get('final_train_loss')
+    print(loss if loss is not None else 'none')
+except: print('none')
+" 2>/dev/null)
+
+        log_info "  📊 $RUN_NAME eval_loss: $CANDIDATE_LOSS"
+
         if [ -z "$BEST_SFT_MODEL" ]; then
-            BEST_SFT_MODEL="$MODEL_DIR/$RUN_NAME"
+            BEST_SFT_MODEL="$CANDIDATE_DIR"
             BEST_SFT_NAME="$RUN_NAME"
+            BEST_SFT_LOSS="$CANDIDATE_LOSS"
+        elif [ "$CANDIDATE_LOSS" != "none" ] && [ "$BEST_SFT_LOSS" != "none" ]; then
+            IS_BETTER=$(python3 -c "print('yes' if float('$CANDIDATE_LOSS') < float('$BEST_SFT_LOSS') else 'no')" 2>/dev/null)
+            if [ "$IS_BETTER" = "yes" ]; then
+                log_success "  🏆 New best SFT! $RUN_NAME ($CANDIDATE_LOSS) beats $BEST_SFT_NAME ($BEST_SFT_LOSS)"
+                BEST_SFT_MODEL="$CANDIDATE_DIR"
+                BEST_SFT_NAME="$RUN_NAME"
+                BEST_SFT_LOSS="$CANDIDATE_LOSS"
+            fi
+        elif [ -z "$BEST_SFT_LOSS" ] || [ "$BEST_SFT_LOSS" = "none" ]; then
+            BEST_SFT_MODEL="$CANDIDATE_DIR"
+            BEST_SFT_NAME="$RUN_NAME"
+            BEST_SFT_LOSS="$CANDIDATE_LOSS"
         fi
+    else
+        log_warn "SFT experiment $RUN_NAME failed — continuing with next..."
+        PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     fi
 done
 
 if [ -z "$BEST_SFT_MODEL" ]; then
     log_error "All SFT experiments failed!"
-    exit 1
+    log_warn "⏭️  GRPO phase will be skipped (no SFT model to build on)"
+else
+    log_success "SFT sweep complete. Best: $BEST_SFT_NAME (eval_loss=${BEST_SFT_LOSS:-N/A})"
+    log_info "Check W&B dashboard to compare runs and pick the best model."
 fi
-
-log_success "SFT sweep complete. Using $BEST_SFT_NAME for GRPO."
-log_info "Check W&B dashboard to compare runs and pick the best model."
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 3: GRPO Reinforcement Learning Sweep
@@ -582,6 +629,13 @@ BEST_GRPO_MODEL=""
 BEST_GRPO_NAME=""
 EXP_NUM=0
 
+# Skip GRPO if no valid base model available
+if [ -z "${GRPO_BASE:-}" ] || [ ! -d "${GRPO_BASE:-/nonexistent}" ]; then
+    log_warn "⏭️  Skipping all GRPO experiments — no valid SFT base model"
+    PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+    GRPO_EXPERIMENTS=()
+fi
+
 for exp in "${GRPO_EXPERIMENTS[@]}"; do
     EXP_NUM=$((EXP_NUM + 1))
     read -r NUM_GEN EPOCHS LR RUN_NAME <<< "$exp"
@@ -598,13 +652,42 @@ for exp in "${GRPO_EXPERIMENTS[@]}"; do
         --lr "$LR" \
         --batch-size 2 \
         --wandb-run-name "$RUN_NAME" \
-        2>&1 | tee "$LOG_DIR/${RUN_NAME}_${TIMESTAMP}.log"
+        2>&1 | tee "$LOG_DIR/${RUN_NAME}_${TIMESTAMP}.log" || {
+        log_warn "GRPO experiment $RUN_NAME crashed — continuing with next..."
+        PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+    }
 
     if [ -d "$OUTPUT" ]; then
         log_success "GRPO experiment $RUN_NAME completed → $OUTPUT"
+
+        # Compare reward scores to find the actual best GRPO model
+        CANDIDATE_REWARD=$(python3 -c "
+import json
+try:
+    info = json.load(open('$OUTPUT/training_info.json'))
+    reward = info.get('best_reward')
+    print(reward if reward is not None else 'none')
+except: print('none')
+" 2>/dev/null)
+
+        log_info "  📊 $RUN_NAME best_reward: $CANDIDATE_REWARD"
+
         if [ -z "$BEST_GRPO_MODEL" ]; then
             BEST_GRPO_MODEL="$OUTPUT"
             BEST_GRPO_NAME="$RUN_NAME"
+            BEST_GRPO_REWARD="$CANDIDATE_REWARD"
+        elif [ "$CANDIDATE_REWARD" != "none" ] && [ "$BEST_GRPO_REWARD" != "none" ]; then
+            IS_BETTER=$(python3 -c "print('yes' if float('$CANDIDATE_REWARD') > float('$BEST_GRPO_REWARD') else 'no')" 2>/dev/null)
+            if [ "$IS_BETTER" = "yes" ]; then
+                log_success "  🏆 New best GRPO! $RUN_NAME ($CANDIDATE_REWARD) beats $BEST_GRPO_NAME ($BEST_GRPO_REWARD)"
+                BEST_GRPO_MODEL="$OUTPUT"
+                BEST_GRPO_NAME="$RUN_NAME"
+                BEST_GRPO_REWARD="$CANDIDATE_REWARD"
+            fi
+        elif [ -z "$BEST_GRPO_REWARD" ] || [ "$BEST_GRPO_REWARD" = "none" ]; then
+            BEST_GRPO_MODEL="$OUTPUT"
+            BEST_GRPO_NAME="$RUN_NAME"
+            BEST_GRPO_REWARD="$CANDIDATE_REWARD"
         fi
     else
         log_error "GRPO experiment $RUN_NAME failed — continuing..."
@@ -620,15 +703,22 @@ log_step "PHASE 4: Quantize Best Models for Edge Deployment"
 LLAMA_CPP_PATH="$SCRIPT_DIR/llama.cpp"
 if [ ! -d "$LLAMA_CPP_PATH" ]; then
     log_info "Cloning llama.cpp..."
-    git clone https://github.com/ggml-org/llama.cpp "$LLAMA_CPP_PATH"
-    cd "$LLAMA_CPP_PATH"
+    if git clone https://github.com/ggml-org/llama.cpp "$LLAMA_CPP_PATH" 2>&1; then
+        cd "$LLAMA_CPP_PATH"
 
-    # Build with CUDA (auto-detect architecture)
-    log_info "Building llama.cpp with CUDA..."
-    cmake -B build -DGGML_CUDA=ON
-    cmake --build build --config Release -j$(nproc)
-    cd "$SCRIPT_DIR"
-    log_success "llama.cpp built successfully"
+        # Build with CUDA (auto-detect architecture)
+        log_info "Building llama.cpp with CUDA..."
+        if cmake -B build -DGGML_CUDA=ON && cmake --build build --config Release -j$(nproc); then
+            log_success "llama.cpp built successfully"
+        else
+            log_warn "llama.cpp build failed — quantization may not work"
+            PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+        fi
+        cd "$SCRIPT_DIR"
+    else
+        log_warn "Failed to clone llama.cpp — quantization will be skipped"
+        PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
+    fi
 fi
 
 # Quantize the best SFT model
@@ -751,11 +841,16 @@ echo "  📊 EXPERIMENT RESULTS"
 echo "═══════════════════════════════════════════════════════════"
 echo ""
 echo "  📁 Training data:     $TRAINING_DATA"
-echo "  🏆 Best SFT model:    ${BEST_SFT_MODEL:-N/A}"
-echo "  🏆 Best GRPO model:   ${BEST_GRPO_MODEL:-N/A}"
+echo "  🏆 Best SFT model:    ${BEST_SFT_MODEL:-N/A} (eval_loss=${BEST_SFT_LOSS:-N/A})"
+echo "  🏆 Best GRPO model:   ${BEST_GRPO_MODEL:-N/A} (reward=${BEST_GRPO_REWARD:-N/A})"
 echo "  📦 Deploy candidate:  ${DEPLOY_BEST:-N/A}"
 echo "  📋 Logs:              $LOG_DIR/"
 echo "  📊 W&B dashboard:     https://wandb.ai/${WANDB_ENTITY:-tinytimor}/${WANDB_PROJECT:-reachy-copilot}"
+if [ "$PIPELINE_FAILURES" -gt 0 ]; then
+echo "  ⚠️  Pipeline failures: $PIPELINE_FAILURES (check logs for details)"
+else
+echo "  ✅ Pipeline failures: 0"
+fi
 echo ""
 echo "  📦 Quantized models:"
 find "$MODEL_DIR" -name "model-*.gguf" -exec ls -lh {} \; 2>/dev/null | while read -r line; do

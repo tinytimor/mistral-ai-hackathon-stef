@@ -418,7 +418,9 @@ def main():
         max_completion_length=1024,              # Max tokens for completions
         max_prompt_length=512,                   # Max tokens for prompts
         logging_steps=5,
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=50,                           # Checkpoint every 50 steps
+        save_total_limit=3,                      # Keep top 3 checkpoints
         bf16=True,
         gradient_checkpointing=True,
         report_to="wandb" if use_wandb else "none",
@@ -450,12 +452,43 @@ def main():
     print(f"   Reward functions: format, relevance, quality, thinking")
     print()
 
-    trainer.train()
+    train_result = trainer.train()
 
-    # ─── Save ────────────────────────────────────────────────────────────
+    # ─── Extract training metrics for checkpoint comparison ──────────
+    train_loss = train_result.training_loss if hasattr(train_result, 'training_loss') else None
+
+    # Collect reward metrics from training log history
+    best_reward = None
+    reward_history = []
+    if hasattr(trainer, 'state') and trainer.state.log_history:
+        for entry in trainer.state.log_history:
+            # Look for reward-related metrics logged by GRPOTrainer
+            for key in ['reward', 'rewards/format_correctness', 'rewards/tool_relevance',
+                        'rewards/response_quality', 'rewards/thinking_quality',
+                        'reward_mean', 'mean_reward']:
+                if key in entry:
+                    reward_history.append(entry[key])
+        if reward_history:
+            best_reward = max(reward_history)
+            print(f"\n📊 Best reward score: {best_reward:.4f}")
+
+    # ─── Save best model ─────────────────────────────────────────────────
     print(f"\n💾 Saving GRPO model to {args.output}...")
     trainer.save_model(str(output_path))
     tokenizer.save_pretrained(str(output_path))
+
+    # Save training info with metrics for cross-run comparison
+    grpo_info = {
+        "sft_checkpoint": args.model,
+        "epochs": args.epochs,
+        "num_generations": args.num_generations,
+        "learning_rate": args.lr,
+        "final_train_loss": train_loss,
+        "best_reward": best_reward,
+        "reward_history": reward_history[-10:] if reward_history else [],  # Last 10
+    }
+    with open(output_path / "training_info.json", "w") as f:
+        json.dump(grpo_info, f, indent=2)
 
     # Log final info to W&B
     if use_wandb:

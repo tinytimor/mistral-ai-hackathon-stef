@@ -196,8 +196,19 @@ def main():
 
     # ─── Load training data ──────────────────────────────────────────────
     print(f"\n📊 Loading training data from {args.data}...")
-    dataset = load_training_data(args.data, tokenizer)
-    print(f"   Total samples: {len(dataset)}")
+    full_dataset = load_training_data(args.data, tokenizer)
+    print(f"   Total samples: {len(full_dataset)}")
+
+    # Train/eval split for best-model checkpointing
+    if len(full_dataset) >= 20:
+        split = full_dataset.train_test_split(test_size=0.1, seed=42)
+        dataset = split["train"]
+        eval_dataset = split["test"]
+        print(f"   Train: {len(dataset)}, Eval: {len(eval_dataset)} (10% holdout)")
+    else:
+        dataset = full_dataset
+        eval_dataset = None
+        print("   ⚠️  Dataset too small for eval split — skipping best-model selection")
 
     # Show a sample
     if len(dataset) > 0:
@@ -233,6 +244,8 @@ def main():
 
     # ─── Training configuration ──────────────────────────────────────────
     print("\n⚙️  Setting up training...")
+    # Enable best-model checkpointing if we have an eval set
+    has_eval = eval_dataset is not None and len(eval_dataset) > 0
     training_args = SFTConfig(
         output_dir=str(output_path),
         num_train_epochs=args.epochs,
@@ -244,7 +257,11 @@ def main():
         lr_scheduler_type="cosine",
         logging_steps=10,
         save_strategy="epoch",
-        save_total_limit=2,
+        save_total_limit=3,                 # Keep top 3 checkpoints
+        eval_strategy="epoch" if has_eval else "no",
+        load_best_model_at_end=has_eval,    # Auto-load best checkpoint at end
+        metric_for_best_model="eval_loss" if has_eval else None,
+        greater_is_better=False,            # Lower eval_loss is better
         bf16=True,                          # Use bf16 on RTX 5090
         tf32=True,                          # TF32 for faster matmul
         gradient_checkpointing=True,        # Save VRAM
@@ -263,6 +280,7 @@ def main():
         model=model,
         args=training_args,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         processing_class=tokenizer,
     )
 
@@ -273,16 +291,30 @@ def main():
     print(f"   Learning rate: {args.lr}")
     print(f"   Max sequence length: {args.max_seq_len}")
     print(f"   LoRA rank: {args.lora_r}")
+    if has_eval:
+        print(f"   📌 Best-model checkpointing: ON (metric=eval_loss)")
     print()
 
-    trainer.train()
+    train_result = trainer.train()
 
-    # ─── Save ────────────────────────────────────────────────────────────
-    print(f"\n💾 Saving model to {args.output}...")
+    # ─── Extract best metrics ────────────────────────────────────────────
+    best_eval_loss = None
+    if has_eval:
+        try:
+            eval_result = trainer.evaluate()
+            best_eval_loss = eval_result.get("eval_loss")
+            print(f"\n📊 Best eval loss: {best_eval_loss:.4f}")
+        except Exception as e:
+            print(f"   ⚠️  Eval failed: {e}")
+
+    train_loss = train_result.training_loss if hasattr(train_result, 'training_loss') else None
+
+    # ─── Save best model ─────────────────────────────────────────────────
+    print(f"\n💾 Saving {'best ' if has_eval else ''}model to {args.output}...")
     trainer.save_model(str(output_path))
     tokenizer.save_pretrained(str(output_path))
 
-    # Save training info
+    # Save training info with checkpoint metrics for cross-run comparison
     info = {
         "base_model": args.base_model,
         "lora_rank": args.lora_r,
@@ -290,6 +322,10 @@ def main():
         "max_seq_len": args.max_seq_len,
         "data_path": args.data,
         "num_samples": len(dataset),
+        "best_eval_loss": best_eval_loss,
+        "final_train_loss": train_loss,
+        "best_model_checkpoint": str(trainer.state.best_model_checkpoint) if has_eval and trainer.state.best_model_checkpoint else None,
+        "load_best_model_at_end": has_eval,
     }
     with open(output_path / "training_info.json", "w") as f:
         json.dump(info, f, indent=2)
