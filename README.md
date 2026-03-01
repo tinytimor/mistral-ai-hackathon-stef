@@ -143,6 +143,9 @@ hyperparameters, GPU utilization, and model checkpoints — across our RTX 5090 
 🔗 **Live dashboard:** [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
 — 6 completed runs (5 SFT sweeps + 1 GRPO) with full metrics.
 
+📄 **Public training report:** [W&B Report — SFT + GRPO Training Results](https://wandb.ai/thalamus_ai/reachy-copilot/reports/Reachy-with-Nvidia-Orin-Nano-OpenClaw-SFT-GRPO-Training-Results-Mistral-Worldwide-Hackathon-2026---VmlldzoxNjA3MTY1Ng?accessToken=9xuegttcpd4wiqdujkwn8j8cnsspp1ulu1l3t84harjqnvles8eotub2ka766nwv)
+— eval/loss curves, token accuracy, entropy, runtime, samples/sec across all runs.
+
 ```bash
 # SFT with different hyperparameters
 python scripts/02_sft_qlora.py --data data/training_data.jsonl --lora-r 16 --lr 1e-4 --wandb-run-name "sft-r16-lr1e4"
