@@ -278,40 +278,103 @@ Total                    : ~5.2 GB  ✅  (2.8 GB headroom)
 
 ### Orin Nano Quick Setup
 
+> **Before you start:** Close Chrome and VS Code on the Orin. The Orin uses unified memory
+> (CPU + GPU share the same pool). Chrome alone consumes ~1.5 GB, leaving no room for the
+> 2 GB model + CUDA runtime. Kill them first: `pkill -f chromium; pkill -f code`
+
 ```bash
 # 1. Install Ollama on the Orin
 curl -fsSL https://ollama.com/install.sh | sh
 
-# 2. Copy model files from the 5090
+# 2. Copy model files from the 5090 (or they may already be on the Orin)
 mkdir -p ~/reachy-model
 # (scp from 5090 — see Option C above)
 
 # 3. Create and test the model
-cd ~/reachy-model
+# IMPORTANT: must cd into the model directory — Modelfile uses a relative path
+cd ~/reachy-model   # (or wherever model-q4_k_m.gguf lives)
 ollama create reachy-copilot -f Modelfile
 ollama run reachy-copilot "Hello!"
 
 # 4. Install Node.js >= 22 + OpenClaw Gateway
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-curl -fsSL https://openclaw.ai/install.sh | bash
+# Use npm directly — the install.sh script can hang/crash on the Orin
+node --version  # must be >= 22 (already installed via nvm on this machine)
+npm i -g openclaw
+
+# 5. Run onboarding wizard (answer: Mistral / your API key / mistral-large-latest /
+#    No to skills / No to channels / Hatch in TUI)
 openclaw onboard --install-daemon
+# When TUI opens, press q to exit — daemon keeps running
 
-# 5. Configure OpenClaw (see AGENTS.md for full openclaw.json)
-openclaw gateway restart
+# 6. Write the openclaw.json config
+# NOTE: "memory" and "bind" are NOT valid keys — omit them
+# NOTE: "mode": "local" is REQUIRED or the gateway refuses to start
+cat > ~/.openclaw/openclaw.json << 'EOF'
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/reachy-copilot",
+        "fallbacks": ["mistral/mistral-large-latest"]
+      }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "auth": { "mode": "token", "token": "reachy-hackathon-2026" },
+    "http": {
+      "endpoints": {
+        "chatCompletions": { "enabled": true }
+      }
+    }
+  },
+  "env": {
+    "MISTRAL_API_KEY": "<your-mistral-api-key>",
+    "BRAVE_API_KEY": "<your-brave-api-key>"
+  }
+}
+EOF
 
-# 6. Clone + start clawd-reachy-mini
+# 7. Validate config and start the gateway service
+openclaw doctor --fix
+systemctl --user start openclaw-gateway.service
+sleep 5 && ss -tlnp | grep 18789   # should show port bound
+
+# Verify gateway started with the right model:
+# Look for: [gateway] agent model: ollama/reachy-copilot
+
+# 8. Install uv + clone clawd-reachy-mini
+# uv is NOT installed by default — install it first
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc  # reload PATH
+
+cd ~
 git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
 cd clawd-reachy-mini
+# uv sync creates .venv automatically — do NOT use conda or pip
+# Warning "'reachy-mini' does not have extra 'vision'" is harmless
+# Downloads ~300 MB (torch, scipy, opencv, etc.) — allow 5-10 min
 uv sync --extra dev --extra audio
 uv run clawd-reachy --gateway-host localhost --gateway-port 18789
 
-# 7. Test the full pipeline (OpenClaw HTTP API)
-curl -X POST http://10.0.0.232:18789/v1/chat/completions \
+# 9. Test the full pipeline (OpenClaw HTTP API)
+curl -X POST http://127.0.0.1:18789/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer reachy-hackathon-2026" \
   -d '{"model": "ollama/reachy-copilot", "messages": [{"role": "user", "content": "Look at me and say hello!"}]}'
 ```
+
+**Troubleshooting OpenClaw on Orin:**
+
+| Error | Fix |
+|-------|-----|
+| `cudaMalloc failed: out of memory` | Close Chrome (`pkill -f chromium`) and VS Code, retry |
+| `Gateway start blocked: set gateway.mode=local` | Add `"mode": "local"` to the `gateway` block in `openclaw.json` |
+| `Unrecognized key: "memory"` | Remove the `memory` block — it's built-in, not configurable |
+| `Invalid input` for `bind` | Remove the `bind` key entirely — let OpenClaw use its default |
+| Gateway timed out / port not bound | Run `openclaw doctor --fix` then `systemctl --user restart openclaw-gateway.service` |
+| `uv: command not found` | Run `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.bashrc` |
 
 ### Verified Tool Calling
 

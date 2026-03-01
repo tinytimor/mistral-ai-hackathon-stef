@@ -1,0 +1,20 @@
+Done
+(base) dsj@dsj-desktop:~/clawd-reachy-mini$ pkill -f chromium; pkill -f code; sleep 2
+cd /home/dsj/clawd-reachy-mini
+REACHY_IP=10.0.0.129 uv run python3 demo.py
+Connecting to Reachy Mini...
+Audio system is not initialized.
+Connected! Reachy is awake.
+
+Type a command (or 'quit' to exit):
+
+> what can you do?
+Thinking...
+Model: I'm your embodied AI assistant, ready to help you with everything! Here's what I can do:
+
+- **Search the web** for real-...
+  🔊 Speaking: I'm your embodied AI assistant, ready to help you with everything! Here's what I can do:
+
+- **Search the web** for real-time information
+- **Send emails** (Gmail via gog CLI)
+- **Manage your calendar*

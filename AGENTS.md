@@ -165,6 +165,9 @@ No custom bridge server needed. Just set `"primary": "ollama/reachy-copilot"` in
 - Cron jobs, webhooks, proactive check-ins ("heartbeats")
 
 ### OpenClaw Configuration (`~/.openclaw/openclaw.json`)
+
+**Verified working config (tested on Orin Nano, March 2026):**
+
 ```json
 {
   "agents": {
@@ -176,8 +179,8 @@ No custom bridge server needed. Just set `"primary": "ollama/reachy-copilot"` in
     }
   },
   "gateway": {
+    "mode": "local",
     "port": 18789,
-    "bind": "lan",
     "auth": { "mode": "token", "token": "reachy-hackathon-2026" },
     "http": {
       "endpoints": {
@@ -186,10 +189,18 @@ No custom bridge server needed. Just set `"primary": "ollama/reachy-copilot"` in
     }
   },
   "env": {
-    "MISTRAL_API_KEY": "<your-mistral-api-key>"
+    "MISTRAL_API_KEY": "<your-mistral-api-key>",
+    "BRAVE_API_KEY": "<your-brave-api-key>"
   }
 }
 ```
+
+**Critical notes from actual deployment:**
+- `"mode": "local"` in the `gateway` block is **required** — without it the gateway refuses to start with `Gateway start blocked`
+- Do NOT add a `"bind"` key — it causes `Invalid input` errors; let OpenClaw use its loopback default
+- Do NOT add a `"memory"` block — memory is built-in and not a configurable key (`Unrecognized key` error)
+- Run `openclaw doctor --fix` after any manual config edit to validate the file
+- Memory (short-term sliding window + long-term SQLite) is always on — no config needed
 
 ### Skills Registered
 ```
@@ -483,10 +494,15 @@ scp models/reachy-copilot-gguf/Modelfile slehman@10.0.0.232:~/reachy-model/
 # ── On the Orin Nano (10.0.0.232) ───────────────────────────
 ssh slehman@10.0.0.232
 
+# IMPORTANT: Close Chrome and VS Code before continuing.
+# The Orin uses unified CPU+GPU memory. Chrome alone eats ~1.5 GB.
+pkill -f chromium; pkill -f code
+
 # 3. Install Ollama (one-time)
 curl -fsSL https://ollama.com/install.sh | sh
 
 # 4. Create the fine-tuned model in Ollama
+# IMPORTANT: cd into the model directory — Modelfile uses a relative path
 cd ~/reachy-model
 ollama create reachy-copilot -f Modelfile
 ollama run reachy-copilot "Hello! Search the web for weather."  # test
@@ -497,10 +513,14 @@ sudo apt-get install -y nodejs
 node --version  # should be >= 22
 
 # 6. Install OpenClaw Gateway
-curl -fsSL https://openclaw.ai/install.sh | bash
+# Use npm directly — the install.sh script can hang/crash on Orin
+npm i -g openclaw
+# Run wizard: select Mistral / your API key / mistral-large-latest
+# Answer No to skills, No to channels, select "Hatch in TUI", then press q
 openclaw onboard --install-daemon
 
 # 7. Configure OpenClaw to use our Ollama model
+# "mode": "local" is REQUIRED. Do NOT add "bind" or "memory" keys.
 cat > ~/.openclaw/openclaw.json << 'EOF'
 {
   "agents": {
@@ -512,8 +532,8 @@ cat > ~/.openclaw/openclaw.json << 'EOF'
     }
   },
   "gateway": {
+    "mode": "local",
     "port": 18789,
-    "bind": "lan",
     "auth": { "mode": "token", "token": "reachy-hackathon-2026" },
     "http": {
       "endpoints": {
@@ -522,22 +542,33 @@ cat > ~/.openclaw/openclaw.json << 'EOF'
     }
   },
   "env": {
-    "MISTRAL_API_KEY": "<your-mistral-api-key>"
+    "MISTRAL_API_KEY": "<your-mistral-api-key>",
+    "BRAVE_API_KEY": "<your-brave-api-key>"
   }
 }
 EOF
-openclaw gateway restart
+openclaw doctor --fix
+systemctl --user start openclaw-gateway.service
+# Verify: look for "[gateway] agent model: ollama/reachy-copilot"
 
-# 8. Install clawd-reachy-mini (voice + robot interface)
+# 8. Install uv (required for clawd-reachy-mini)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc  # or restart terminal
+
+# 9. Install clawd-reachy-mini (voice + robot interface)
+cd ~
 git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
 cd clawd-reachy-mini
+# uv sync creates .venv automatically — do NOT use conda or pip for this
+# Warning "'reachy-mini' does not have extra 'vision'" is harmless
+# Note: downloads ~300 MB (torch, scipy, opencv, etc.) — allow 5-10 min
 uv sync --extra dev --extra audio
 
-# 9. Run clawd-reachy-mini (connects to local OpenClaw Gateway)
+# 10. Run clawd-reachy-mini (connects to local OpenClaw Gateway)
 uv run clawd-reachy --gateway-host localhost --gateway-port 18789
 
-# 10. Test the full pipeline (OpenClaw HTTP API)
-curl -X POST http://10.0.0.232:18789/v1/chat/completions \
+# 11. Test the full pipeline (OpenClaw HTTP API)
+curl -X POST http://127.0.0.1:18789/v1/chat/completions \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer reachy-hackathon-2026" \
     -d '{"model": "ollama/reachy-copilot", "messages": [{"role": "user", "content": "Look at me and say hello!"}]}'
