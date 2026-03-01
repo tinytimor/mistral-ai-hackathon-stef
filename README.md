@@ -5,7 +5,8 @@
 > with Mistral API for vision (Pixtral), voice (Voxtral ASR), and complex reasoning (Mistral Large),
 > all embodied in a Reachy Mini robot that **sees, hears, speaks, thinks, and moves**.
 
-**Mistral Worldwide Hackathon** — Feb 28 – Mar 1, 2026, NYC
+**[Mistral Worldwide Hackathon](https://mistral.ai/hackathon)** — Feb 28 – Mar 1, 2026, NYC\
+Organized in partnership with **Weights & Biases**, **NVIDIA**, **AWS** · Awards by **ElevenLabs**, **Hugging Face**, **Tilde Research**
 
 > ⚠️ **Work in Progress** — Built in just 2 days (Feb 28–Mar 1). The core pipeline is working:
 > local Ministral 3B on Orin Nano + Reachy Mini robot control + Mistral API for ASR/vision/fallback.
@@ -133,10 +134,14 @@ export MIC_SECONDS=5            # recording duration per voice turn
 
 ---
 
-## 📊 Experiment Tracking (Weights & Biases)
+## 📊 Experiment Tracking — [Weights & Biases](https://wandb.ai/thalamus_ai/reachy-copilot) *(Hackathon Partner)*
 
-All training runs are tracked with [W&B](https://wandb.ai/tinytimor/reachy-copilot)
-and can be monitored in real-time from any device — your laptop on the train, your phone, etc.
+[Weights & Biases](https://wandb.ai/) is an **organizing partner** of the Mistral Worldwide Hackathon.
+We use W&B to track all SFT and GRPO training experiments — loss curves, reward scores,
+hyperparameters, GPU utilization, and model checkpoints — across our RTX 5090 training runs.
+
+🔗 **Live dashboard:** [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
+— 6 completed runs (5 SFT sweeps + 1 GRPO) with full metrics.
 
 ```bash
 # SFT with different hyperparameters
@@ -154,7 +159,7 @@ python scripts/02_sft_qlora.py --data data/training_data.jsonl --no-wandb
 ### 📱 Monitor from Your Laptop (or Phone)
 ```bash
 # W&B dashboard — no VPN needed, works over cellular:
-open https://wandb.ai/tinytimor/reachy-copilot
+open https://wandb.ai/thalamus_ai/reachy-copilot
 
 # Pipeline alerts — get push notifications when training finishes or crashes:
 nohup ./run_experiments.sh > pipeline.log 2>&1 & disown
@@ -391,17 +396,33 @@ For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/O
 > we built the demo on the Orin Nano in parallel. The SFT + GRPO pipeline works
 > end-to-end, but with more time we'd scale up training data and GRPO iterations.
 
+### W&B Dashboard — [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
+
+All 6 training runs completed and tracked (RTX 5090, ~12h ago):
+
+| Run Name | Phase | Tags | Runtime | Status |
+|----------|-------|------|---------|--------|
+| `sft-r16-lr2e4` | SFT | qlora, mistral, sft | 3m 14s | ✅ Finished |
+| `sft-r32-lr2e4` | SFT | qlora, mistral, sft | 4m 25s | ✅ Finished |
+| `sft-r32-lr1e4` | SFT | qlora, mistral, sft | 4m 42s | ✅ Finished |
+| `sft-r32-ep5-lr2e4` | SFT | qlora, mistral, sft | 5m 14s | ✅ Finished |
+| `sft-r64-lr2e4` | SFT | qlora, mistral, sft | 7m 37s | ✅ Finished |
+| `grpo-g4-test-fix2` | GRPO | grpo, rl, tool-calling | 16m 41s | ✅ Finished |
+
+### Best Results
+
 | Phase | Best Model | Metric | Value |
 |-------|-----------|--------|-------|
-| SFT | `sft-r64-lr2e4` | eval_loss | 0.266 |
-| GRPO | `grpo-g4-test` | best_reward | -0.5 |
+| SFT | `sft-r64-lr2e4` | eval_loss | **0.266** |
+| GRPO | `grpo-g4-test-fix2` | best_reward | **-0.5** |
 
-**Training details:**
-- Base model: `mistralai/Ministral-3-3B-Instruct-2512` (FP8 → dequantized to BF16)
-- SFT: LoRA r=64, lr=2e-4, 3 epochs, 100 training samples (teacher-generated)
-- GRPO: 4 generations, 1 epoch, reward functions for format/tool/response/thinking quality
-- Quantization: F16 → Q4_K_M (6.4 GB → 2.0 GB)
-- W&B dashboard: https://wandb.ai/thalamus_ai/reachy-copilot
+### Training Details
+- **Base model:** `mistralai/Ministral-3-3B-Instruct-2512` (FP8 → dequantized to BF16)
+- **SFT hyperparameter sweep:** LoRA r ∈ {16, 32, 64}, lr ∈ {1e-4, 2e-4}, epochs ∈ {3, 5}
+- **GRPO:** 4 generations, 1 epoch, 4 reward functions (format, tool relevance, response quality, thinking)
+- **Quantization:** F16 → Q4_K_M via llama.cpp (6.4 GB → 2.0 GB)
+- **GPU:** NVIDIA RTX 5090 (32GB VRAM, Blackwell sm_120)
+- **Experiment tracking:** Weights & Biases — all runs, metrics, and hyperparameters logged
 
 **What we'd do with more time:**
 - Scale training data from 100 → 1000+ examples via Mistral Large teacher
@@ -469,12 +490,24 @@ FUTURE (months):
 
 ## 🏆 Prize Strategy
 
-| Prize | How We Hit It |
-|-------|--------------|
-| **Local 1st-3rd** | Full multi-agent architecture — edge + cloud, physical robot demo |
-| **Best Voice (ElevenLabs)** | Voice loop: wake → Voxtral STT → LLM → ElevenLabs TTS → robot speaker |
-| **Best Use of Mistral Vibe** | Built the project with Vibe + created a Vibe skill for Reachy |
-| **Best Architectural Modification** | Split-brain: edge model for reactions, cloud for reasoning |
+| Prize | Value | How We Hit It |
+|-------|-------|---------------|
+| **Local 1st** | $1,500 + $3,000 credits + 3mo ElevenLabs Pro | Full multi-agent architecture — edge + cloud, physical robot on the table |
+| **Local 2nd** | $1,000 + $2,000 credits | Same as above |
+| **Local 3rd** | $500 + $1,000 credits | Same as above |
+| **Best Voice (ElevenLabs)** | $2,000-6,000 in credits | Voice loop: mic → Voxtral ASR → Ministral 3B → ElevenLabs TTS → robot speaker |
+| **Best Architectural Modification (Tilde)** | $500 + internship opportunity | Split-brain: edge model for reactions, cloud for reasoning — quantized + deployed on $249 board |
+| **Best Use of Mistral Vibe** | Mistral AirPods | Used Vibe to build the project + Vibe skill for Reachy |
+
+### Hackathon Partner Technologies Used
+
+| Partner | Role in Hackathon | How We Use It |
+|---------|-------------------|---------------|
+| **Mistral AI** | Organizer + model provider | Entire model stack: Ministral 3B (edge), Voxtral (ASR), Pixtral (vision), Mistral Large (reasoning) |
+| **Weights & Biases** | Organizing partner | [6 training runs tracked](https://wandb.ai/thalamus_ai/reachy-copilot) — SFT sweeps + GRPO with full metrics |
+| **NVIDIA** | Organizing partner | RTX 5090 (training), Jetson Orin Nano Super (edge deployment, 8GB, 67 TOPS) |
+| **ElevenLabs** | Awards sponsor | High-quality TTS for robot voice output via Reachy speaker |
+| **Hugging Face** | Awards sponsor | Model hosting (Ministral 3B), Transformers + TRL + PEFT for SFT/GRPO training |
 
 ---
 
@@ -499,14 +532,14 @@ This project builds on the work of many open-source contributors. We gratefully 
 | [Ministral 3 3B GGUF](https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF) | Mistral AI | Apache 2.0 | Pre-quantized for Ollama |
 | [Voxtral Mini 3B GGUF](https://huggingface.co/mradermacher/Voxtral-Mini-3B-2507-GGUF) | mradermacher | Apache 2.0 | Pre-quantized for edge audio |
 
-### Libraries
-[Hugging Face Transformers](https://github.com/huggingface/transformers) ·
+### Libraries & Hackathon Partners
+[Weights & Biases](https://wandb.ai/) *(hackathon partner — experiment tracking)* ·
+[Hugging Face Transformers](https://github.com/huggingface/transformers) *(hackathon partner — model hosting + training)* ·
+[ElevenLabs](https://elevenlabs.io/) *(hackathon partner — TTS)* ·
 [TRL](https://github.com/huggingface/trl) ·
 [PEFT](https://github.com/huggingface/peft) ·
-[Weights & Biases](https://wandb.ai/) ·
 [Ollama](https://ollama.ai/) ·
 [FastAPI](https://fastapi.tiangolo.com/) ·
-[ElevenLabs](https://elevenlabs.io/) ·
 [Piper TTS](https://github.com/rhasspy/piper) ·
 [llama.cpp](https://github.com/ggerganov/llama.cpp)
 

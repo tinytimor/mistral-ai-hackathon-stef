@@ -412,8 +412,8 @@ Shortcut (no training, deploy pre-quantized):
 
 | Phase | Best Model | Metric | Value | Notes |
 |-------|-----------|--------|-------|-------|
-| SFT | `sft-r64-lr2e4` | eval_loss | **0.266** | LoRA r=64, lr=2e-4, 3 epochs |
-| GRPO | `grpo-g4-test` | best_reward | **-0.5** | 4 generations, 1 epoch, on sft-r64-lr2e4 |
+| SFT | `sft-r64-lr2e4` | eval_loss | **0.266** | LoRA r=64, lr=2e-4, 3 epochs, 7m 37s |
+| GRPO | `grpo-g4-test-fix2` | best_reward | **-0.5** | 4 generations, 1 epoch, 16m 41s |
 | Quantization | `model-q4_k_m.gguf` | size | **2.0 GB** | From 6.4 GB F16 → Q4_K_M |
 
 **Key technical notes:**
@@ -690,7 +690,7 @@ monitored in real-time from any device (MacBook on the train, phone, etc.).
 # On the 5090 training machine:
 export WANDB_API_KEY="your-key-here"
 export WANDB_PROJECT="reachy-copilot"
-export WANDB_ENTITY="tinytimor"  # your W&B username
+export WANDB_ENTITY="thalamus_ai"  # your W&B org
 
 # Training scripts auto-log to W&B:
 python scripts/02_sft_qlora.py --data data/training_data.jsonl --wandb-run-name "sft-run-1"
@@ -700,7 +700,7 @@ python scripts/03_grpo_agent.py --model models/sft --wandb-run-name "grpo-run-1"
 ### Monitoring from Your Laptop
 ```bash
 # Open in any browser — no VPN needed:
-open https://wandb.ai/tinytimor/reachy-copilot
+open https://wandb.ai/thalamus_ai/reachy-copilot
 
 # Or use the W&B CLI:
 pip install wandb
@@ -751,7 +751,7 @@ disown
 | Ollama API | 11434 | Orin Nano (10.0.0.232) | HTTP |
 | Reachy gRPC | 50051 | Reachy Mini | gRPC |
 | VNC Server | 5901 | Orin Nano | VNC |
-| W&B Dashboard | — | wandb.ai/thalamus_ai/reachy-copilot | HTTPS |
+| W&B Dashboard | — | [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot) | HTTPS |
 | Mistral API | — | api.mistral.ai | HTTPS |
 
 ### Key Files for Orin Deployment
