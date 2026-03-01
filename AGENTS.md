@@ -1,40 +1,47 @@
 # 🤖 AGENTS.md — Reachy Copilot Agent Architecture
 
-> Multi-agent system combining edge inference, cloud intelligence, and physical robotics
-> for the Mistral Worldwide Hackathon 2026.
+> Embodied AI assistant running entirely on the edge — fine-tuned Ministral 3B
+> via Ollama + OpenClaw Gateway + clawd-reachy-mini on Jetson Orin Nano,
+> with Mistral Large as cloud fallback. For the Mistral Worldwide Hackathon 2026.
 
 ---
 
 ## Agent Overview
 
+**Everything runs on the Orin Nano.** The RTX 5090 is only for training.
+
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        AGENT ORCHESTRATION                             │
-│                                                                        │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐ │
-│  │ 🧠 Reasoning │    │ ⚡ Reactive  │    │ 🦞 OpenClaw Gateway     │ │
-│  │   Agent      │    │   Agent      │    │   (Orchestrator)        │ │
-│  │ Mistral Large│    │ Ministral 3B │    │   Session + Memory +    │ │
-│  │ (Cloud/5090) │    │ (Orin Nano)  │    │   Multi-Channel         │ │
-│  └──────┬───────┘    └──────┬───────┘    └───────────┬──────────────┘ │
-│         │                   │                        │                 │
-│         └───────────────────┼────────────────────────┘                 │
-│                             │                                          │
-│                     ┌───────▼───────┐                                  │
-│                     │ 🤖 Reachy     │                                  │
-│                     │   Robot Agent │                                  │
-│                     │ (Embodiment)  │                                  │
-│                     └───────────────┘                                  │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│              ORIN NANO SUPER (10.0.0.232) — All-in-One Edge             │
+│                                                                          │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────────┐  │
+│  │ 🦞 OpenClaw      │  │ ⚡ Ollama        │  │ 🎤 clawd-reachy-mini │  │
+│  │   Gateway        │◄─│   reachy-copilot │  │   (Voice + Robot)    │  │
+│  │   :18789         │  │   :11434         │  │   Whisper STT        │  │
+│  │   Skills + Mem   │  │   Ministral 3B   │  │   ElevenLabs TTS     │  │
+│  │   Multi-Channel  │  │   Q4_K_M (2 GB)  │  │   Wake Word          │  │
+│  └────────┬─────────┘  └──────────────────┘  └──────────┬────────────┘  │
+│           │                                             │               │
+│           │          ┌──────────────────┐                │               │
+│           └─────────►│ 🤖 Reachy Mini  │◄───────────────┘               │
+│                      │   gRPC :50051   │                                │
+│                      │   Head + Camera │                                │
+│                      │   4 Mics + Spkr │                                │
+│                      └──────────────────┘                               │
+│                                                                          │
+│  ── Cloud Fallback (Mistral API) ──────────────────────────────────────  │
+│  │  mistral/mistral-large-latest — complex reasoning only              │ │
+│  └─────────────────────────────────────────────────────────────────────  │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 1. Reasoning Agent (Cloud / RTX 5090)
+## 1. Reasoning Agent (Cloud Fallback)
 
 **Model:** Mistral Large 3 (675B MoE, 41B active)
-**Location:** Azure AI Foundry API or local on RTX 5090
-**Role:** Complex reasoning, multi-step planning, tool orchestration
+**Location:** Mistral API (`mistral/mistral-large-latest`)
+**Role:** Complex reasoning fallback when the edge model can't handle a query
 
 ### Capabilities
 - Multi-step task decomposition (think → plan → act → reflect)
@@ -50,67 +57,55 @@
 
 ### Configuration
 ```yaml
+# Configured as OpenClaw fallback model in openclaw.json:
 agent:
   name: reasoning-agent
-  model: Mistral-Large-3
-  provider: foundry  # or mistral API
+  model: mistral/mistral-large-latest  # OpenClaw built-in Mistral provider
+  provider: mistral
   temperature: 0.7
   max_tokens: 2048
-  tools:
-    - search_web
-    - send_email
-    - calendar_list_events
-    - calendar_create_event
-    - get_patient_summary
-    - memory_search
-    - browser_action
-  system_prompt: |
-    You are the reasoning core of Reachy, an embodied AI assistant.
-    Think carefully, plan your approach, execute tools, then reflect.
-    Wrap your thinking in <think></think> tags.
-    Use <tool_call>{"name": "...", "arguments": {...}}</tool_call> for actions.
+  # OpenClaw routes to this when edge model escalates
+  # All tools are OpenClaw skills — same tools available to both models
 ```
 
 ---
 
-## 2. Reactive Agent (Orin Nano Edge)
+## 2. Reactive Agent (Orin Nano — Primary)
 
 **Model:** Ministral 3B Q4_K_M (fine-tuned via SFT + GRPO)
-**Location:** Jetson Orin Nano Super (8GB, 67 TOPS)
-**Role:** Real-time robot reactions, fast local responses, physical interaction
+**Location:** Jetson Orin Nano Super (8GB, 67 TOPS) via Ollama
+**Role:** Primary agent — handles all queries locally, escalates to cloud only when needed
+
+### How It Works
+OpenClaw Gateway runs on the Orin and uses its **built-in Ollama provider** to route
+all queries to our fine-tuned `reachy-copilot` model at `localhost:11434`.
+No custom bridge needed — OpenClaw auto-detects Ollama.
 
 ### Capabilities
 - Sub-second response to user presence (head tracking, nodding, expressions)
-- Quick verbal responses via Piper TTS / ElevenLabs
-- Real-time speech transcription via Whisper.cpp
-- Local tool calling for robot control
+- Quick verbal responses via ElevenLabs TTS (clawd-reachy-mini)
+- Real-time speech transcription via Whisper (clawd-reachy-mini)
+- Tool calling for robot control, web search, email, calendar, etc.
 - Camera-based perception (object detection, face tracking)
 
 ### When Invoked
-- User speaks directly to the robot (wake word detection)
-- Real-time emotional reactions (user enters room, waves, etc.)
-- Simple queries that don't need cloud reasoning
-- Latency-critical robot movements
+- **All queries go here first** — it's the primary model
+- User speaks to robot → clawd-reachy-mini → OpenClaw → Ollama
+- Wake word detection triggers listening mode
+- Only escalates to Mistral Large for truly complex multi-step reasoning
 
-### Configuration
-```yaml
-agent:
-  name: reactive-agent
-  model: reachy-copilot  # Ollama model name
-  provider: ollama
-  endpoint: http://localhost:11434
-  temperature: 0.6
-  max_tokens: 512
-  context_length: 2048
-  tools:
-    - robot_look_at
-    - robot_express
-    - robot_speak
-    - set_reminder
-  system_prompt: |
-    You are Reachy, a friendly robot assistant.
-    Respond quickly and naturally. Use your body to express emotions.
-    For complex tasks, say "Let me think about that more carefully."
+### Configuration (openclaw.json)
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/reachy-copilot",
+        "fallbacks": ["mistral/mistral-large-latest"]
+      }
+    }
+  }
+}
 ```
 
 ### Edge Voice Model: Voxtral Mini 3B
@@ -126,50 +121,75 @@ This simplifies the pipeline from `mic → Whisper → text → LLM → tools` t
 
 ### Memory Budget (Orin Nano 8GB)
 ```
-Text mode (default — Ministral only):
-  Ministral 3B Q4_K_M     : ~2.0 GB
-  KV Cache (2048 ctx)      : ~0.5 GB
-  CUDA runtime             : ~0.8 GB
-  OS + Python + Reachy SDK : ~1.5 GB
-  Bridge server + FastAPI  : ~0.3 GB
-  Piper TTS                : ~0.2 GB
-  ─────────────────────────────────
-  Total                    : ~5.3 GB  ✅ (2.7 GB headroom)
-
-Audio mode (swap in Voxtral for voice tasks):
-  Voxtral Mini 3B Q4_K_M   : ~2.5 GB
+Production mode (OpenClaw + Ollama + clawd-reachy-mini):
+  Ministral 3B Q4_K_M      : ~2.0 GB   (Ollama)
   KV Cache (2048 ctx)       : ~0.5 GB
   CUDA runtime              : ~0.8 GB
-  OS + Python + Reachy SDK  : ~1.5 GB
-  Bridge server + FastAPI   : ~0.3 GB
+  OS + JetPack              : ~1.0 GB
+  OpenClaw Gateway (Node.js): ~0.3 GB
+  clawd-reachy-mini (Python): ~0.4 GB   (Whisper + ElevenLabs)
+  reachy-mini SDK           : ~0.2 GB
   ─────────────────────────────────
-  Total                     : ~5.6 GB  ✅ (2.4 GB headroom)
+  Total                     : ~5.2 GB  ✅ (2.8 GB headroom)
 
-Dual Q3 mode (both loaded simultaneously):
-  Ministral 3B Q3_K         : ~1.8 GB
-  Voxtral Mini 3B Q3_K      : ~1.8 GB
-  KV Cache (2048 ctx × 2)   : ~1.0 GB
+With Voxtral swap (replace Ministral for voice tasks):
+  Voxtral Mini 3B Q4_K_M   : ~2.5 GB   (swapped in via Ollama)
+  KV Cache (2048 ctx)       : ~0.5 GB
   CUDA runtime              : ~0.8 GB
-  OS + Python + Reachy SDK  : ~1.5 GB
+  OS + JetPack              : ~1.0 GB
+  OpenClaw + clawd-reachy   : ~0.7 GB
+  reachy-mini SDK           : ~0.2 GB
   ─────────────────────────────────
-  Total                     : ~6.9 GB  ✅ (1.1 GB headroom)
+  Total                     : ~5.7 GB  ✅ (2.3 GB headroom)
 ```
 
 ---
 
-## 3. OpenClaw Gateway Agent (Orchestrator)
+## 3. OpenClaw Gateway (On Orin — Orchestrator)
 
-**Model:** Model-agnostic (routes to Reasoning or Reactive agent)
-**Location:** RTX 5090 Desktop (or Orin Nano in Option B)
-**Role:** Session management, memory persistence, multi-channel routing
+**Model:** Routes to `ollama/reachy-copilot` (primary) or `mistral/mistral-large-latest` (fallback)
+**Location:** Orin Nano (runs as daemon, port 18789)
+**Role:** Session management, memory persistence, skill orchestration, multi-channel routing
+
+### Key Insight: Built-in Ollama Provider
+OpenClaw has **native Ollama support** — it auto-detects Ollama at `localhost:11434`.
+No custom bridge server needed. Just set `"primary": "ollama/reachy-copilot"` in config.
 
 ### Capabilities
+- **Built-in Ollama provider** — auto-detects local models, no auth needed
+- **Built-in Mistral provider** — cloud fallback with API key
 - Persistent memory across conversations (24/7)
 - Multi-channel inbox (WhatsApp, Telegram, Discord, Slack, iMessage)
 - Skill orchestration and tool routing
 - Browser control (CDP) for web interactions
 - Cron jobs, webhooks, proactive check-ins ("heartbeats")
-- Agent-to-agent sessions
+
+### OpenClaw Configuration (`~/.openclaw/openclaw.json`)
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/reachy-copilot",
+        "fallbacks": ["mistral/mistral-large-latest"]
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "bind": "lan",
+    "auth": { "mode": "token", "token": "reachy-hackathon-2026" },
+    "http": {
+      "endpoints": {
+        "chatCompletions": { "enabled": true }
+      }
+    }
+  },
+  "env": {
+    "MISTRAL_API_KEY": "<your-mistral-api-key>"
+  }
+}
+```
 
 ### Skills Registered
 ```
@@ -192,25 +212,20 @@ Dual Q3 mode (both loaded simultaneously):
 ```
 
 ### Smart Routing Logic
-```python
-def route_request(user_input: str, context: dict) -> str:
-    """Route to the appropriate agent based on complexity and latency needs."""
+OpenClaw handles routing automatically via its model fallback chain:
 
-    # Latency-critical: always local
-    if is_robot_action(user_input):  # "look at me", "nod", "wave"
-        return "reactive-agent"  # Orin Nano, <200ms
-
-    # Simple queries: local model
-    if is_simple_query(user_input):  # greetings, time, weather
-        return "reactive-agent"  # Orin Nano, <1s
-
-    # Complex reasoning: cloud model
-    if needs_reasoning(user_input):  # multi-step, healthcare, analysis
-        return "reasoning-agent"  # Mistral Large, 2-5s
-
-    # Default: try local first, fallback to cloud
-    return "reactive-agent-with-fallback"
 ```
+User query → OpenClaw Gateway
+                 ↓
+         ollama/reachy-copilot (primary, local, <1s)
+                 ↓ (if model returns "I need help with this")
+         mistral/mistral-large-latest (fallback, cloud, 2-5s)
+```
+
+The fine-tuned model is trained to recognize when it needs help:
+- Simple queries, robot actions, tool calls → handled locally
+- Complex multi-step reasoning, healthcare analysis → model says
+  "Let me think about that more carefully" → OpenClaw escalates to fallback
 
 ---
 
@@ -417,25 +432,29 @@ The pipeline automatically selects the best model from each sweep:
 
 ### Hackathon Demo Setup
 ```
-┌────────────────────────────────────────────────────────────┐
-│                    NETWORK (LAN / Tailscale)                │
-│                                                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐   │
-│  │  RTX 5090    │  │  Orin Nano   │  │  MacBook Pro   │   │
-│  │  Desktop     │  │  + Reachy    │  │  (Control)     │   │
-│  │              │  │              │  │                │   │
-│  │  OpenClaw    │  │  Ollama      │  │  VNC Viewer    │   │
-│  │  Gateway     │  │  3B model    │  │  SSH Terminal  │   │
-│  │  :3000       │  │  Bridge API  │  │  W&B Dashboard │   │
-│  │              │  │  :8000       │  │                │   │
-│  │  W&B logging │  │  Whisper STT │  │  Monitor from  │   │
-│  │              │  │  Piper TTS   │  │  train (NYC)   │   │
-│  └──────────────┘  └──────────────┘  └────────────────┘   │
-│                                                            │
-│  ── Azure AI Foundry (Cloud) ──────────────────────────── │
-│  │  Mistral-Large-3 (fallback reasoning)                 │ │
-│  └───────────────────────────────────────────────────────  │
-└────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                    NETWORK (LAN / Tailscale)                    │
+│                                                                │
+│  ┌──────────────────────────┐     ┌────────────────┐           │
+│  │  Orin Nano (10.0.0.232)  │     │  MacBook Pro   │           │
+│  │  + Reachy Mini (gRPC)    │     │  (Control)     │           │
+│  │                          │     │                │           │
+│  │  Ollama :11434           │     │  VNC Viewer    │           │
+│  │   └─ reachy-copilot      │     │  SSH Terminal  │           │
+│  │  OpenClaw Gateway :18789 │     │  W&B Dashboard │           │
+│  │   └─ Skills + Memory     │     │                │           │
+│  │  clawd-reachy-mini       │     │  Monitor from  │           │
+│  │   └─ Whisper + ElevenLabs│     │  anywhere      │           │
+│  └──────────────────────────┘     └────────────────┘           │
+│                                                                │
+│  ── RTX 5090 Desktop (training only, not runtime) ────────── │
+│  │  SFT + GRPO training, quantization, W&B logging           │ │
+│  └────────────────────────────────────────────────────────────│ │
+│                                                                │
+│  ── Mistral API (Cloud Fallback) ────────────────────────────  │
+│  │  mistral/mistral-large-latest (complex reasoning only)    │ │
+│  └────────────────────────────────────────────────────────────  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Remote Access (Mac → Orin Nano from train)
@@ -446,7 +465,7 @@ The pipeline automatically selects the best model from each sweep:
 
 ### Deploying to Orin Nano — Step by Step
 
-After training on the RTX 5090, deploy the fine-tuned model to the Orin Nano:
+After training on the RTX 5090, deploy everything to the Orin Nano:
 
 ```bash
 # ── On the RTX 5090 (training machine) ──────────────────────
@@ -458,52 +477,84 @@ python scripts/04_quantize_deploy.py \
     --llama-cpp ./llama.cpp
 
 # 2. Copy model + Modelfile to the Orin Nano
-scp models/reachy-copilot-gguf/model-q4_k_m.gguf orin@192.168.1.50:~/reachy-model/
-scp models/reachy-copilot-gguf/Modelfile orin@192.168.1.50:~/reachy-model/
+scp models/reachy-copilot-gguf/model-q4_k_m.gguf slehman@10.0.0.232:~/reachy-model/
+scp models/reachy-copilot-gguf/Modelfile slehman@10.0.0.232:~/reachy-model/
 
-# ── On the Orin Nano (edge device) ──────────────────────────
-ssh orin@192.168.1.50
+# ── On the Orin Nano (10.0.0.232) ───────────────────────────
+ssh slehman@10.0.0.232
 
 # 3. Install Ollama (one-time)
 curl -fsSL https://ollama.com/install.sh | sh
 
-# 4. Create the model in Ollama
+# 4. Create the fine-tuned model in Ollama
 cd ~/reachy-model
 ollama create reachy-copilot -f Modelfile
+ollama run reachy-copilot "Hello! Search the web for weather."  # test
 
-# 5. Test the model
-ollama run reachy-copilot "Hello! Search the web for today's weather."
-# Should output: [TOOL_CALLS]search_web[ARGS]{"query": "..."}
+# 5. Install Node.js >= 22 (required for OpenClaw)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node --version  # should be >= 22
 
-# 6. Clone the repo and start the bridge server
-git clone https://github.com/tinytimor/mistral-ai-hackathon-stef.git
-cd mistral-ai-hackathon-stef
-pip install -r requirements.txt
-python scripts/06_openclaw_bridge.py --standalone --reachy-ip <REACHY_IP>
+# 6. Install OpenClaw Gateway
+curl -fsSL https://openclaw.ai/install.sh | bash
+openclaw onboard --install-daemon
 
-# 7. Test the full pipeline
-curl -X POST http://localhost:8000/chat \
+# 7. Configure OpenClaw to use our Ollama model
+cat > ~/.openclaw/openclaw.json << 'EOF'
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "ollama/reachy-copilot",
+        "fallbacks": ["mistral/mistral-large-latest"]
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "bind": "lan",
+    "auth": { "mode": "token", "token": "reachy-hackathon-2026" },
+    "http": {
+      "endpoints": {
+        "chatCompletions": { "enabled": true }
+      }
+    }
+  },
+  "env": {
+    "MISTRAL_API_KEY": "<your-mistral-api-key>"
+  }
+}
+EOF
+openclaw gateway restart
+
+# 8. Install clawd-reachy-mini (voice + robot interface)
+git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
+cd clawd-reachy-mini
+uv sync --extra dev --extra audio
+
+# 9. Run clawd-reachy-mini (connects to local OpenClaw Gateway)
+uv run clawd-reachy --gateway-host localhost --gateway-port 18789
+
+# 10. Test the full pipeline (OpenClaw HTTP API)
+curl -X POST http://10.0.0.232:18789/v1/chat/completions \
     -H "Content-Type: application/json" \
-    -d '{"message": "Look at me and say hello!"}'
-
-# 8. Verify memory (Ollama API)
-curl http://localhost:11434/api/chat -d '{
-    "model": "reachy-copilot",
-    "messages": [{"role": "user", "content": "What can you do?"}],
-    "stream": false
-}'
+    -H "Authorization: Bearer reachy-hackathon-2026" \
+    -d '{"model": "ollama/reachy-copilot", "messages": [{"role": "user", "content": "Look at me and say hello!"}]}'
 ```
 
 ### Orin Nano Memory Budget (Verified)
 
 ```
-Model (Q4_K_M ~2GB)   : ~2.0 GB
-KV Cache (2048 ctx)    : ~0.5 GB
-CUDA runtime           : ~0.8 GB
-OS + Reachy SDK        : ~1.5 GB
-Bridge server + FastAPI: ~0.3 GB
-────────────────────────────────
-Total                  : ~5.1 GB  ✅  (2.9 GB headroom)
+Ollama (reachy-copilot)  : ~2.0 GB
+KV Cache (2048 ctx)      : ~0.5 GB
+CUDA runtime             : ~0.8 GB
+OS + JetPack             : ~1.0 GB
+OpenClaw Gateway (Node)  : ~0.3 GB
+clawd-reachy-mini (Py)   : ~0.4 GB
+reachy-mini SDK          : ~0.2 GB
+─────────────────────────────────
+Total                    : ~5.2 GB  ✅  (2.8 GB headroom)
 ```
 
 ### Troubleshooting on Orin
@@ -531,62 +582,65 @@ ollama ps   # shows currently loaded models + VRAM usage
 ## 9. clawd-reachy-mini Integration
 
 The [clawd-reachy-mini](https://github.com/ArturSkowronski/clawd-reachy-mini) project provides
-an existing OpenClaw ↔ Reachy Mini bridge:
+the voice and robot interface layer, connecting to our local OpenClaw Gateway:
 
 ### What It Provides
 - WebSocket client for OpenClaw Gateway protocol
 - STT backends (Whisper, Faster-Whisper, OpenAI)
 - TTS via ElevenLabs
-- Reachy Mini SDK integration (head, antennas, emotions)
+- `reachy-mini` SDK integration (head, antennas, emotions)
 - Wake word detection
-- Conversation loop (mic → STT → Gateway → TTS → robot)
+- Conversation loop: `mic → STT → OpenClaw Gateway → Ollama → TTS → robot`
+- `action-skill/` directory with robot tool wrappers (SKILL.md format)
+
+### How It Fits Our Architecture
+1. **Connects to LOCAL OpenClaw Gateway** — `--gateway-host localhost` (not remote 5090)
+2. **OpenClaw routes to our fine-tuned model** — `ollama/reachy-copilot` is the primary model
+3. **Robot skills via action-skill/** — `reachy_connect`, `reachy_move_head`, `reachy_play_emotion`, `reachy_say`
+4. **No custom bridge needed** — clawd-reachy-mini + OpenClaw + Ollama is the full stack
 
 ### How We Extend It
-1. **Add fine-tuned model support** — Route to our custom Ministral 3B instead of default
-2. **Add memory layer** — Inject conversation context from L2/L3 memory
-3. **Add healthcare skills** — Patient summaries, medication reminders
-4. **Add vision pipeline** — Camera → Pixtral for visual understanding
-5. **Custom SKILL.md** — Our 18 tools registered as OpenClaw skills
+1. **Fine-tuned model** — OpenClaw uses our custom Ministral 3B instead of default model
+2. **Additional OpenClaw skills** — web search, email, calendar, Spotify, etc.
+3. **Memory via OpenClaw** — built-in persistent memory across sessions
+4. **Vision pipeline** — Camera → Pixtral for visual understanding
 
-### Installation
+### Installation (on Orin Nano)
 ```bash
 git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
 cd clawd-reachy-mini
 uv sync --extra dev --extra audio
-uv run clawd-reachy --gateway-host <5090_IP>
+
+# Connect to LOCAL OpenClaw Gateway (running on same Orin)
+uv run clawd-reachy --gateway-host localhost --gateway-port 18789
 ```
 
 ---
 
-## 10. Edge Bridge Architecture (VisionClaw Pattern)
+## 10. Architecture Inspirations
 
-The bridge server (`scripts/06_openclaw_bridge.py`) runs on Orin Nano and is the
-central nervous system of the Reactive Agent. It exposes:
+### VisionClaw Pattern
+[VisionClaw](https://github.com/sseanliu/VisionClaw) (1.4k ⭐) — iOS/Android app for
+Meta Ray-Ban glasses using Gemini Live + OpenClaw. Key insight we borrowed:
 
-### Endpoints
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/chat` | POST | Main chat endpoint with smart routing |
-| `/v1/chat/completions` | POST | OpenAI-compatible (VisionClaw pattern) |
-| `/robot/{action}` | POST | Direct robot control |
-| `/memory/store` | POST | Store to L2/L3 memory |
-| `/memory/search` | POST | Search persistent memory |
-| `/health` | GET | System status check |
-
-### Key Design Decisions
-- **Inference is 5090-independent** — the 5090 trains models, but Orin runs them
-- **Local tool execution** — all robot + memory tools run on-device
-- **OpenAI-compatible API** — VisionClaw pattern for seamless gateway integration
-- **Smart routing** — simple queries stay local, complex queries escalate to cloud
-- **Memory-augmented prompts** — L2/L3 memory injected into every LLM call
+- **Single `execute(task: string)` tool** — the LLM gets ONE tool that delegates
+  everything to OpenClaw. OpenClaw figures out which skill to use.
+- **OpenAI-compatible endpoint** — `/v1/chat/completions` for seamless integration
+- **Session key management** — multi-turn conversations via OpenClaw sessions
 
 ### What We Borrow vs. Build
-| From **clawd-reachy-mini** | From **VisionClaw** | **Our additions** |
-|---|---|---|
-| Reachy SDK patterns | Single `execute` tool | Local Ollama inference |
-| ElevenLabs TTS | OpenAI-compat endpoint | Memory-augmented prompts |
-| Wake word detection | Session key management | Smart complexity routing |
-| Emotion animations | Multi-turn tool calling | Voxtral model swapping |
+| From **clawd-reachy-mini** | From **VisionClaw** | From **OpenClaw** | **Our additions** |
+|---|---|---|---|
+| reachy-mini SDK patterns | Single `execute` tool | Built-in Ollama provider | Fine-tuned Ministral 3B |
+| ElevenLabs TTS | OpenAI-compat endpoint | Persistent memory | Custom tool-calling training |
+| Wake word detection | Session key management | Skill system + registry | SFT + GRPO pipeline |
+| Emotion animations | Multi-turn tool calling | Multi-channel messaging | Voxtral model swapping |
+
+### Key Design Decisions
+- **No custom bridge server** — OpenClaw's built-in Ollama provider replaces our `06_openclaw_bridge.py`
+- **Inference is 5090-independent** — the 5090 trains models, Orin runs everything
+- **All tools are OpenClaw skills** — robot, web search, email, calendar, etc.
+- **Smart fallback** — local model handles 90%+, Mistral Large for the rest
 
 ---
 
@@ -657,9 +711,8 @@ disown
 
 | Component | Port | Host | Protocol |
 |-----------|------|------|----------|
-| OpenClaw Gateway | 3000 | 5090 Desktop | HTTP/WS |
-| Ollama API | 11434 | Orin Nano (192.168.1.50) | HTTP |
-| Reachy Bridge | 8000 | Orin Nano (192.168.1.50) | HTTP/REST |
+| OpenClaw Gateway | 18789 | Orin Nano (10.0.0.232) | HTTP/WS |
+| Ollama API | 11434 | Orin Nano (10.0.0.232) | HTTP |
 | Reachy gRPC | 50051 | Reachy Mini | gRPC |
 | VNC Server | 5901 | Orin Nano | VNC |
 | W&B Dashboard | — | wandb.ai/thalamus_ai/reachy-copilot | HTTPS |
@@ -669,14 +722,10 @@ disown
 
 | File | Purpose |
 |------|---------|
-| `models/reachy-copilot-gguf/model-q4_k_m.gguf` | Quantized model (2.0 GB) — copy to Orin |
-| `models/reachy-copilot-gguf/Modelfile` | Ollama config — copy to Orin |
-| `scripts/06_openclaw_bridge.py` | Bridge server — run on Orin |
-| `scripts/05_memory_manager.py` | Memory service (optional) — run on Orin |
-| `docs/ORIN-REACHY-SETUP.md` | Full hardware setup guide |
-
----
-
+| `models/reachy-copilot-gguf/model-q4_k_m.gguf` | Quantized model (2.0 GB) — SCP to Orin |
+| `models/reachy-copilot-gguf/Modelfile` | Ollama config — SCP to Orin |
+| `~/.openclaw/openclaw.json` | OpenClaw Gateway config — create on Orin |
+| `clawd-reachy-mini/` | Voice + robot interface — clone on Orin |
 ## References & Credits
 
 This project builds on the work of many open-source contributors and projects.
