@@ -34,24 +34,67 @@ def merge_lora(model_path: str, output_path: str):
     """Merge LoRA adapters back into the base model."""
     print("🔀 Merging LoRA adapters into base model...")
 
-    # Load training info to find base model
+    # Find base model — check adapter_config.json first, then training_info.json
+    adapter_cfg_path = Path(model_path) / "adapter_config.json"
     info_path = Path(model_path) / "training_info.json"
-    if info_path.exists():
+    base_model = None
+
+    if adapter_cfg_path.exists():
+        with open(adapter_cfg_path) as f:
+            adapter_cfg = json.load(f)
+        base_model = adapter_cfg.get("base_model_name_or_path")
+
+    if not base_model and info_path.exists():
         with open(info_path) as f:
             info = json.load(f)
-        base_model = info.get("base_model", "mistralai/Ministral-8B-Instruct-2410")
-    else:
-        base_model = "mistralai/Ministral-8B-Instruct-2410"
+        base_model = info.get("base_model")
+
+    if not base_model:
+        base_model = os.getenv("BASE_MODEL", "mistralai/Ministral-3-3B-Instruct-2512")
+
     print(f"   Base model: {base_model}")
+
+    # Detect model architecture
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(base_model, trust_remote_code=True)
+    model_type = getattr(config, "model_type", "")
 
     # Load base model in full precision for merging
     print("   Loading base model (this may take a minute)...")
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model,
-        torch_dtype=torch.float16,
-        device_map="auto",
-        trust_remote_code=True,
-    )
+    if model_type == "mistral3":
+        from transformers import Mistral3ForConditionalGeneration
+        # Check for FP8 quantization
+        existing_quant = getattr(config, "quantization_config", None)
+        if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
+            from transformers import FineGrainedFP8Config
+            print(f"   📎 Base model is FP8 — dequantizing to BF16 for merge...")
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                base_model,
+                torch_dtype=torch.bfloat16,
+                device_map="auto",
+                trust_remote_code=True,
+                quantization_config=FineGrainedFP8Config(dequantize=True),
+            )
+            if hasattr(model.config, 'quantization_config'):
+                model.config.quantization_config = None
+            if hasattr(model, 'is_quantized'):
+                model.is_quantized = False
+            if hasattr(model, 'hf_quantizer'):
+                model.hf_quantizer = None
+        else:
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                base_model,
+                torch_dtype=torch.bfloat16,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            torch_dtype=torch.float16,
+            device_map="auto",
+            trust_remote_code=True,
+        )
     tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
 
     # Load LoRA adapter
@@ -66,7 +109,46 @@ def merge_lora(model_path: str, output_path: str):
     merged_path = Path(output_path) / "merged"
     merged_path.mkdir(parents=True, exist_ok=True)
     print(f"   Saving merged model to {merged_path}...")
-    model.save_pretrained(str(merged_path), safe_serialization=True)
+
+    # Ensure all quantization artifacts are fully cleared before saving
+    # (FP8 dequantized models can fail on save_pretrained otherwise)
+    if hasattr(model, 'hf_quantizer'):
+        model.hf_quantizer = None
+    if hasattr(model, 'is_quantized'):
+        model.is_quantized = False
+    if hasattr(model.config, 'quantization_config'):
+        model.config.quantization_config = None
+    # Remove _pre_quantization_dtype if present (causes issues with some save paths)
+    if hasattr(model, '_pre_quantization_dtype'):
+        delattr(model, '_pre_quantization_dtype')
+
+    # Clear weight conversion metadata left by FP8 dequantization
+    # (these contain FP8 ops that can't be reversed, causing NotImplementedError on save)
+    if hasattr(model, '_weight_conversions'):
+        model._weight_conversions = None
+
+    try:
+        model.save_pretrained(str(merged_path), safe_serialization=True)
+    except (NotImplementedError, Exception) as e:
+        print(f"   ⚠️  save_pretrained failed ({e}), trying state_dict save...")
+        import gc
+        from safetensors.torch import save_file
+
+        # Manual save: get state dict, save as safetensors + config
+        state_dict = model.state_dict()
+        # Move all tensors to CPU
+        state_dict = {k: v.cpu().contiguous() for k, v in state_dict.items()}
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        # Save weights
+        save_file(state_dict, str(merged_path / "model.safetensors"))
+
+        # Save config
+        model.config.save_pretrained(str(merged_path))
+
+        print("   ✅ Saved via manual state_dict export")
+
     tokenizer.save_pretrained(str(merged_path))
 
     print("   ✅ LoRA merge complete!")
@@ -106,23 +188,32 @@ def quantize_gguf(gguf_path: str, output_path: str, llama_cpp_path: str, quant_t
     """Quantize GGUF model to specified quantization level."""
     print(f"\n🗜️  Quantizing to {quant_type}...")
 
-    quantize_bin = Path(llama_cpp_path) / "llama-quantize"
-    if not quantize_bin.exists():
-        # Try build directory
-        quantize_bin = Path(llama_cpp_path) / "build" / "bin" / "llama-quantize"
-    if not quantize_bin.exists():
+    # Search multiple possible locations for llama-quantize
+    search_paths = [
+        Path(llama_cpp_path) / "llama-quantize",
+        Path(llama_cpp_path) / "build" / "bin" / "llama-quantize",
+        Path(llama_cpp_path) / "build_cpu" / "bin" / "llama-quantize",
+        Path(llama_cpp_path) / "bin" / "llama-quantize",
+    ]
+    quantize_bin = None
+    for p in search_paths:
+        if p.exists():
+            quantize_bin = p
+            break
+    if quantize_bin is None:
         print(f"   ❌ llama-quantize not found. Build llama.cpp first:")
-        print(f"      cd {llama_cpp_path} && make llama-quantize")
+        print(f"      cd {llama_cpp_path} && cmake -B build_cpu -DGGML_CUDA=OFF && cmake --build build_cpu --target llama-quantize -j$(nproc)")
         sys.exit(1)
 
     output_file = Path(output_path) / f"model-{quant_type.lower()}.gguf"
     cmd = [str(quantize_bin), gguf_path, str(output_file), quant_type]
 
     print(f"   Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True)
 
     if result.returncode != 0:
-        print(f"   ❌ Quantization failed: {result.stderr}")
+        stderr_text = result.stderr.decode("utf-8", errors="replace")
+        print(f"   ❌ Quantization failed: {stderr_text}")
         sys.exit(1)
 
     # Get file size

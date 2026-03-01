@@ -111,6 +111,31 @@ ssh orin 'cd ~/reachy-model && ollama create reachy-copilot -f Modelfile'
 python scripts/06_openclaw_bridge.py --standalone --reachy-ip <REACHY_IP>
 ```
 
+### Option C: Deploy Fine-Tuned Model to Orin Nano
+
+See the full step-by-step in [docs/ORIN-REACHY-SETUP.md](docs/ORIN-REACHY-SETUP.md), but the short version:
+
+```bash
+# On the 5090 (after training completes):
+# 1. Merge LoRA + quantize to GGUF Q4_K_M (~2 GB)
+python scripts/04_quantize_deploy.py --model models/sft-r64-lr2e4 \
+    --output models/reachy-copilot-gguf --llama-cpp ./llama.cpp
+
+# 2. Copy the GGUF + Modelfile to the Orin Nano:
+scp models/reachy-copilot-gguf/model-q4_k_m.gguf orin@192.168.1.50:~/reachy-model/
+scp models/reachy-copilot-gguf/Modelfile orin@192.168.1.50:~/reachy-model/
+
+# 3. SSH into the Orin and create the Ollama model:
+ssh orin@192.168.1.50
+cd ~/reachy-model
+ollama create reachy-copilot -f Modelfile
+ollama run reachy-copilot "Hello Reachy!"   # Test it
+
+# 4. Start the bridge server (connects LLM → Reachy robot):
+cd ~/mistral-ai-hackathon-stef
+python scripts/06_openclaw_bridge.py --standalone --reachy-ip <REACHY_IP>
+```
+
 ---
 
 ## 📊 Experiment Tracking (Weights & Biases)
@@ -211,6 +236,92 @@ run_experiments.sh              # Automated training sweep (leave running on 509
 AGENTS.md                       # Full multi-agent architecture spec
 BATTLE-PLAN.md                  # Hackathon strategy & prize targeting
 ```
+
+---
+
+## 🤖 Deploying to Orin Nano
+
+The fine-tuned model runs entirely on the Orin Nano (8GB) via Ollama — no cloud needed.
+
+### What Gets Deployed
+
+| File | Size | Description |
+|------|------|-------------|
+| `model-q4_k_m.gguf` | ~2.0 GB | Quantized fine-tuned Ministral 3B |
+| `Modelfile` | ~1 KB | Ollama config: system prompt + Mistral v7 chat template + params |
+
+### Memory Budget on Orin Nano (8GB)
+
+```
+Model (Q4_K_M)         : ~2.0 GB
+KV Cache (2048 ctx)    : ~0.5 GB
+CUDA runtime           : ~0.8 GB
+OS + Reachy SDK        : ~1.5 GB
+Bridge server + FastAPI: ~0.3 GB
+───────────────────────────────
+Total                  : ~5.1 GB  ✅  (2.9 GB headroom)
+```
+
+### Orin Nano Quick Setup
+
+```bash
+# 1. Install Ollama on the Orin
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 2. Create model directory and copy files from the 5090
+mkdir -p ~/reachy-model
+# (scp from 5090 — see Option C above)
+
+# 3. Create and test the model
+cd ~/reachy-model
+ollama create reachy-copilot -f Modelfile
+ollama run reachy-copilot "Hello!"
+
+# 4. Clone repo + start bridge server
+git clone https://github.com/tinytimor/mistral-ai-hackathon-stef.git
+cd mistral-ai-hackathon-stef
+pip install -r requirements.txt
+python scripts/06_openclaw_bridge.py --standalone --reachy-ip <REACHY_IP>
+
+# 5. Test the full loop (LLM → robot)
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Look at me and say hello!"}'
+```
+
+### Verified Tool Calling
+
+The fine-tuned model correctly calls tools in Mistral v7 format:
+
+```
+User: "Search the web for weather in DC"
+Model: [TOOL_CALLS]search_web[ARGS]{"query": "weather in DC right now", "max_results": 1}
+
+User: "What's on my calendar today?"
+Model: [TOOL_CALLS]calendar_list_events[ARGS]{"calendar_id": "primary", "from_date": "2026-02-28T00:00:00", ...}
+
+User: "Look at me and say hello!"
+Model: [TOOL_CALLS]look_at[ARGS]{"x": 1.0, "y": 0.0, "z": 0.0, "duration": 1.0}
+       [TOOL_CALLS]speak[ARGS]{"text": "Hello! It's great to see you today."}
+```
+
+For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/ORIN-REACHY-SETUP.md).
+
+---
+
+## 📈 Training Results
+
+| Phase | Best Model | Metric | Value |
+|-------|-----------|--------|-------|
+| SFT | `sft-r64-lr2e4` | eval_loss | 0.266 |
+| GRPO | `grpo-g4-test` | best_reward | -0.5 |
+
+**Training details:**
+- Base model: `mistralai/Ministral-3-3B-Instruct-2512` (FP8 → dequantized to BF16)
+- SFT: LoRA r=64, lr=2e-4, 3 epochs, 100 training samples
+- GRPO: 4 generations, 1 epoch, reward functions for format/tool/response/thinking quality
+- Quantization: F16 → Q4_K_M (6.4 GB → 2.0 GB)
+- W&B dashboard: https://wandb.ai/thalamus_ai/reachy-copilot
 
 ---
 

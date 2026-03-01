@@ -162,28 +162,33 @@ def main():
     use_wandb = not args.no_wandb and os.getenv("WANDB_API_KEY")
     if use_wandb:
         run_name = args.wandb_run_name or f"sft-{Path(args.base_model).name}-r{args.lora_r}-ep{args.epochs}-lr{args.lr}"
-        wandb.init(
-            project=args.wandb_project,
-            name=run_name,
-            config={
-                "task": "sft-qlora",
-                "base_model": args.base_model,
-                "lora_rank": args.lora_r,
-                "lora_alpha": args.lora_r * 2,
-                "epochs": args.epochs,
-                "batch_size": args.batch_size,
-                "grad_accum": args.grad_accum,
-                "effective_batch_size": args.batch_size * args.grad_accum,
-                "learning_rate": args.lr,
-                "max_seq_len": args.max_seq_len,
-                "quantization": "4-bit NF4",
-                "optimizer": "adamw_torch_fused",
-                "scheduler": "cosine",
-                "gpu": gpu_name if torch.cuda.is_available() else "none",
-            },
-            tags=["sft", "qlora", "mistral", "reachy-copilot", "hackathon"],
-        )
-        print(f"   📊 W&B run: {wandb.run.url}")
+        try:
+            wandb.init(
+                project=args.wandb_project,
+                name=run_name,
+                config={
+                    "task": "sft-qlora",
+                    "base_model": args.base_model,
+                    "lora_rank": args.lora_r,
+                    "lora_alpha": args.lora_r * 2,
+                    "epochs": args.epochs,
+                    "batch_size": args.batch_size,
+                    "grad_accum": args.grad_accum,
+                    "effective_batch_size": args.batch_size * args.grad_accum,
+                    "learning_rate": args.lr,
+                    "max_seq_len": args.max_seq_len,
+                    "quantization": "4-bit NF4",
+                    "optimizer": "adamw_torch_fused",
+                    "scheduler": "cosine",
+                    "gpu": gpu_name if torch.cuda.is_available() else "none",
+                },
+                tags=["sft", "qlora", "mistral", "reachy-copilot", "hackathon"],
+                settings=wandb.Settings(init_timeout=300),
+            )
+            print(f"   📊 W&B run: {wandb.run.url}")
+        except Exception as e:
+            print(f"   ⚠️  W&B init failed ({e}) — continuing without logging")
+            use_wandb = False
     else:
         print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
 
@@ -217,14 +222,57 @@ def main():
 
     # ─── Load model with QLoRA ───────────────────────────────────────────
     print(f"\n🧠 Loading {args.base_model} with 4-bit QLoRA...")
-    model = AutoModelForCausalLM.from_pretrained(
-        args.base_model,
-        quantization_config=QLORA_CONFIG,
-        device_map="auto",
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",  # RTX 5090 supports FA2
-    )
+
+    # Ministral 3 (Dec 2025) uses Mistral3ForConditionalGeneration (multimodal wrapper)
+    # which AutoModelForCausalLM doesn't support — load explicitly
+    from transformers import AutoConfig
+    config = AutoConfig.from_pretrained(args.base_model, trust_remote_code=True)
+    model_type = getattr(config, "model_type", "")
+
+    if model_type == "mistral3":
+        from transformers import Mistral3ForConditionalGeneration
+        print(f"   📎 Detected Mistral3 multimodal architecture — loading with Mistral3ForConditionalGeneration")
+
+        # Check if model is already quantized (e.g., FP8) — can't stack BnB on top
+        existing_quant = getattr(config, "quantization_config", None)
+        if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
+            quant_method = existing_quant["quant_method"]
+            print(f"   📎 Model is {quant_method}-quantized — dequantizing to BF16 for training")
+            from transformers import FineGrainedFP8Config
+            # Dequantize FP8 → BF16 (produces a clean, trainable model ~6.8GB)
+            # With LoRA + gradient checkpointing + reduced batch, this fits on 32GB GPU
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                args.base_model,
+                device_map="auto",
+                trust_remote_code=True,
+                torch_dtype=torch.bfloat16,
+                quantization_config=FineGrainedFP8Config(dequantize=True),
+            )
+            # Clear quantization state so trainer doesn't reject training
+            if hasattr(model.config, 'quantization_config'):
+                model.config.quantization_config = None
+            if hasattr(model, 'is_quantized'):
+                model.is_quantized = False
+            if hasattr(model, 'hf_quantizer'):
+                model.hf_quantizer = None
+        else:
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                args.base_model,
+                quantization_config=QLORA_CONFIG,
+                device_map="auto",
+                trust_remote_code=True,
+                torch_dtype=torch.bfloat16,
+                attn_implementation="flash_attention_2",
+            )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.base_model,
+            quantization_config=QLORA_CONFIG,
+            device_map="auto",
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
+        )
 
     # Prepare for k-bit training
     model = prepare_model_for_kbit_training(model)
@@ -266,7 +314,7 @@ def main():
         tf32=True,                          # TF32 for faster matmul
         gradient_checkpointing=True,        # Save VRAM
         gradient_checkpointing_kwargs={"use_reentrant": False},
-        max_seq_length=args.max_seq_len,
+        max_length=args.max_seq_len,            # TRL 0.29+ renamed max_seq_length → max_length
         packing=True,                       # Pack short sequences for efficiency
         dataset_text_field="text",
         report_to="wandb" if use_wandb else "none",  # W&B experiment tracking

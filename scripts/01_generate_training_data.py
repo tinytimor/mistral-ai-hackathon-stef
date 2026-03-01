@@ -42,6 +42,7 @@ import json
 import os
 import random
 import sys
+import time
 from pathlib import Path
 
 # Load .env file FIRST before any Azure imports
@@ -86,6 +87,10 @@ LOCAL_BASE_URL = os.getenv("LOCAL_BASE_URL", "http://localhost:8000/v1/")
 # then fine-tune a SMALL student model to mimic it.
 # Default teacher: Mistral-Large-3 (via Foundry) or mistral-large-latest (via Mistral API)
 MODEL = os.getenv("FOUNDRY_MODEL_NAME") or os.getenv("MISTRAL_MODEL_NAME", "Mistral-Large-3")
+
+# If using Mistral API provider, use the La Plateforme model name
+if PROVIDER == "mistral" and MODEL == "Mistral-Large-3":
+    MODEL = os.getenv("MISTRAL_MODEL_NAME", "mistral-large-latest")
 
 # ─── Full Mistral model catalog ─────────────────────────────────────────────
 #
@@ -624,75 +629,90 @@ TOOLS = [
     },
 ]
 
-# ─── Scenario templates — OpenClaw-style personal AI assistant tasks ─────────
-SCENARIOS = [
-    # ── Gmail / Email ──
-    "User says 'check my email for anything important from the last 24 hours.'",
-    "User says 'send an email to sarah@company.com about rescheduling our 3pm meeting to 4pm.'",
-    "User says 'find all emails from Amazon in the last week and summarize my recent orders.'",
-    "User says 'draft a reply to the last email from my boss — tell them the report will be ready by Friday.'",
-    "User says 'unsubscribe me from marketing emails' — robot should search recent promo emails and explain it can help identify them.",
-    # ── iMessage ──
-    "User says 'text my mom that I'll be home for dinner at 7' — number is +15551234567.",
-    "User says 'send an iMessage to john@icloud.com saying the meeting is confirmed.'",
-    "User says 'check my recent iMessage conversations and tell me if anyone needs a reply.'",
-    # ── WhatsApp ──
-    "User says 'send a WhatsApp to +15559876543 saying I'm running 15 minutes late.'",
-    "User says 'WhatsApp the group about tonight's dinner reservation at 8pm.'",
-    "User says 'message everyone on WhatsApp that the hackathon demo starts in 30 minutes.'",
-    # ── Signal ──
-    "User says 'send a Signal message to +15551112222 — tell them the documents are encrypted and ready.'",
-    "User says 'use Signal to tell Alex the meeting room changed to B204.'",
-    # ── Telegram ──
-    "User says 'send a Telegram message to @devteam_chat saying the deployment succeeded.'",
-    # ── Calendar ──
-    "User says 'what's on my calendar today?'",
-    "User says 'schedule a meeting with the AI team tomorrow from 2-3pm titled Sprint Planning.'",
-    "User says 'move my 10am to 11am and let the attendees know.'",
-    "User says 'block out Friday afternoon for deep work — no meetings.'",
-    "User asks 'do I have any conflicts next week?' — should list events and check for overlaps.",
-    # ── Browser ──
-    "User says 'go to Hacker News and tell me the top 5 stories right now.'",
-    "User says 'open Amazon and check the price of the Sony WH-1000XM5 headphones.'",
-    "User says 'fill out the form on that website with my shipping address.'",
-    "User says 'take a screenshot of the current page and describe what you see.'",
-    # ── Smart Home ──
+# ─── Scenario templates — Tiered by complexity ──────────────────────────────
+# SHORT: 1 tool, instant reaction, <200ms target on edge
+# MEDIUM: 2-3 tools, requires planning, some conditional logic
+# LONG: 4+ tools, multi-step reasoning, conditional branching, reflection
+
+SCENARIOS_SHORT = [
+    # ── Single tool, immediate response ──
     "User says 'turn off the living room lights.'",
-    "User says 'set the bedroom lights to 30% brightness and warm white.'",
-    "User says 'what's the temperature in the house right now?'",
-    "User says 'lock the front door and turn off all downstairs lights.'",
-    # ── Spotify / Music ──
-    "User says 'play some chill lo-fi beats.'",
     "User says 'what song is playing right now?'",
-    "User says 'skip this track and queue up Bohemian Rhapsody.'",
-    "User says 'play my Discover Weekly playlist.'",
-    # ── Twitter/X ──
-    "User says 'tweet: Just shipped our hackathon project — an embodied AI assistant on @ReachyRobot! 🤖🦞'",
-    "User says 'check my mentions on Twitter and summarize any replies.'",
-    # ── Multi-tool / Agentic (combining OpenClaw capabilities) ──
-    "User says 'check my email for any meeting invites, add them to my calendar, and text me a summary on WhatsApp.'",
-    "User asks 'what time is my flight tomorrow?' — should search email for booking confirmations, check calendar, and tell the user.",
-    "User says 'search for the best pizza places near me, send the top 3 to my wife on iMessage, and remind me to make a reservation in 2 hours.'",
-    "User says 'check the weather, then if it's nice, message the group chat on Signal about meeting at the park at 4pm.'",
-    "User says 'turn on the porch lights, play jazz music, and send a WhatsApp to the dinner guests that I'm ready for them.'",
-    "User says 'look up today's Hacker News top stories, draft an email summarizing the AI ones, and post a tweet about the most interesting one.'",
-    # ── Think-Plan-Act-Reflect ──
-    "User says 'help me plan a productive morning routine' — robot should think about components, search for best practices, create calendar events, and set reminders.",
-    "User says 'I have a presentation in 2 hours, help me prepare' — should check calendar for context, search the topic, express encouragement, set a reminder.",
-    "User says 'I want to disconnect this weekend — help me set up an auto-reply on email and let my close contacts know on WhatsApp and iMessage.'",
-    "User says 'my mom's birthday is next week — help me plan something' — should search for gift ideas, check calendar for conflicts, offer to send invites.",
-    # ── Robot + OpenClaw combined ──
+    "User says 'play some chill lo-fi beats.'",
     "User says 'look at me' — robot should look straight ahead at face level.",
     "User says 'nod if you understand' — robot should nod.",
-    "User says 'read me my emails while I eat breakfast' — robot should search email, look at user, speak the summaries aloud.",
-    "User says 'you seem excited!' — robot should express happy, then explain what it's been working on.",
-    "User says 'check my messages across all platforms and give me a briefing' — search email, check WhatsApp, check iMessage, look at user, speak summary.",
-    # ── Edge cases ──
+    "User says 'what's on my calendar today?'",
+    "User says 'set the bedroom lights to 30% brightness and warm white.'",
+    "User says 'what's the temperature in the house right now?'",
+    "User says 'skip this track and queue up Bohemian Rhapsody.'",
+    "User says 'play my Discover Weekly playlist.'",
+    "User says 'send a WhatsApp to +15559876543 saying I'm running 15 minutes late.'",
+    "User says 'text my mom that I'll be home for dinner at 7' — number is +15551234567.",
+    "User says 'send an iMessage to john@icloud.com saying the meeting is confirmed.'",
+    "User says 'send a Signal message to +15551112222 — tell them the documents are encrypted and ready.'",
+    "User says 'send a Telegram message to @devteam_chat saying the deployment succeeded.'",
+    "User says 'schedule a meeting with the AI team tomorrow from 2-3pm titled Sprint Planning.'",
+    "User says 'set a reminder in 30 minutes to take my medication.'",
+    "User says 'tweet: Just shipped our hackathon project — an embodied AI assistant on @ReachyRobot! 🤖🦞'",
+    "User says 'what can you do?' — robot should explain its OpenClaw capabilities.",
     "User says something the robot can't help with: 'can you order me an Uber?'",
     "User gives a vague request: 'do something useful.'",
-    "User asks multiple things: 'email my boss, text my wife, and play some music — oh and turn off the kitchen lights.'",
-    "User says 'what can you do?' — robot should explain its OpenClaw capabilities.",
+    "User says 'you seem excited!' — robot should express happy.",
+    "User says 'send an email to sarah@company.com about rescheduling our 3pm meeting to 4pm.'",
+    "User says 'block out Friday afternoon for deep work — no meetings.'",
+    "User says 'take a screenshot of the current page and describe what you see.'",
 ]
+
+SCENARIOS_MEDIUM = [
+    # ── 2-3 tools, requires thinking about order and dependencies ──
+    "User says 'check my email for anything important from the last 24 hours' — search email, then look at user and speak the summary aloud.",
+    "User says 'find all emails from Amazon in the last week and summarize my recent orders' — search email, then speak the summary.",
+    "User says 'draft a reply to the last email from my boss — tell them the report will be ready by Friday' — search for boss's email, then send reply.",
+    "User says 'lock the front door and turn off all downstairs lights.' — two smart home actions.",
+    "User says 'move my 10am to 11am and let the attendees know' — list events to find the 10am, then create/modify event.",
+    "User asks 'do I have any conflicts next week?' — list events, analyze for overlaps, speak result.",
+    "User says 'go to Hacker News and tell me the top 5 stories right now' — browse website, then speak summary.",
+    "User says 'open Amazon and check the price of the Sony WH-1000XM5 headphones' — browse, then speak price.",
+    "User says 'check the weather, then if it's nice, message the group chat on Signal about meeting at the park at 4pm.' — search web for weather, conditionally send Signal message.",
+    "User says 'WhatsApp the group about tonight's dinner reservation at 8pm' — check calendar for the reservation details, then send WhatsApp.",
+    "User says 'check my mentions on Twitter and summarize any replies' — search web for mentions, speak summary.",
+    "User says 'read me my emails while I eat breakfast' — search email, look at user, speak the summaries aloud.",
+    "User says 'use Signal to tell Alex the meeting room changed to B204, and set a reminder for the meeting in 1 hour.'",
+    "User says 'turn on the porch lights and play jazz music.' — smart home + spotify.",
+    "User says 'I have a meeting in 30 minutes — what is it about?' — check calendar, then search email for context, speak the brief.",
+    "User says 'message everyone on WhatsApp that the hackathon demo starts in 30 minutes' — send WhatsApp, express excited, speak confirmation.",
+    "User says 'unsubscribe me from marketing emails' — search recent promo emails, explain what was found, offer to help.",
+    "User says 'check my recent iMessage conversations and tell me if anyone needs a reply' — memory search + speak summary.",
+]
+
+SCENARIOS_LONG = [
+    # ── 4+ tools, multi-step reasoning, conditional branching, reflection ──
+    "User says 'check my email for any meeting invites, add them to my calendar, and text me a summary on WhatsApp' — search email → parse invites → create calendar events → send WhatsApp summary → reflect on what was done.",
+    "User asks 'what time is my flight tomorrow?' — search email for booking confirmations → check calendar → cross-reference → speak the answer → set a reminder for departure.",
+    "User says 'search for the best pizza places near me, send the top 3 to my wife on iMessage, and remind me to make a reservation in 2 hours' — web search → filter results → send iMessage → set reminder → confirm.",
+    "User says 'turn on the porch lights, play jazz music, and send a WhatsApp to the dinner guests that I'm ready for them' — smart home → spotify → WhatsApp → express happy → speak confirmation.",
+    "User says 'look up today's Hacker News top stories, draft an email summarizing the AI ones, and post a tweet about the most interesting one' — browse HN → filter for AI → draft email → send email → compose tweet → post tweet → reflect.",
+    "User says 'help me plan a productive morning routine' — think about components → search web for best practices → create 5 calendar events → set 3 reminders → speak the plan → express encouraging.",
+    "User says 'I have a presentation in 2 hours, help me prepare' — check calendar for presentation details → search web for the topic → search memory for past prep notes → express encouragement → set reminder at T-15min → speak the brief.",
+    "User says 'I want to disconnect this weekend — help me set up an auto-reply on email and let my close contacts know on WhatsApp and iMessage' — draft auto-reply email → search memory for close contacts → send WhatsApp to each → send iMessage to each → create calendar block → reflect on coverage.",
+    "User says 'my mom's birthday is next week — help me plan something' — search web for gift ideas → check calendar for conflicts → search memory for mom's preferences → create calendar event for party → draft email invite → send WhatsApp to family → speak the plan.",
+    "User says 'check my messages across all platforms and give me a briefing' — search email → search memory for WhatsApp context → search memory for iMessage context → look at user → speak comprehensive briefing → express appropriate emotion.",
+    "User asks 'email my boss, text my wife, and play some music — oh and turn off the kitchen lights' — search memory for boss email + wife number → send email → send iMessage → play spotify → smart home lights off → speak confirmation of all 4.",
+    "User says 'I'm hosting a dinner party tonight — help me get ready' — check calendar for guest list → search web for recipe ideas → turn on ambient lights → play dinner playlist → send WhatsApp to guests with arrival time → set reminder for oven → speak the plan.",
+    "User says 'I think I double-booked myself tomorrow — can you check and fix it?' — list calendar events → identify conflicts → search email for context on each → decide which to move → reschedule the less important one → email affected attendees → speak what was done.",
+    "User says 'give me a full morning briefing' — check calendar for today → search email for overnight messages → search web for news + weather → look at user → speak comprehensive briefing → express appropriate emotion based on schedule density.",
+    "User says 'help me prepare for my job interview at Google next Tuesday' — check calendar to confirm → search web for Google interview tips → search memory for relevant experience notes → create study calendar events for the weekend → set daily reminders → draft a thank-you email template → speak the prep plan.",
+]
+
+# Combined flat list for backward compatibility
+SCENARIOS = SCENARIOS_SHORT + SCENARIOS_MEDIUM + SCENARIOS_LONG
+
+# Complexity metadata for each tier
+SCENARIO_TIERS = (
+    [(s, "short") for s in SCENARIOS_SHORT]
+    + [(s, "medium") for s in SCENARIOS_MEDIUM]
+    + [(s, "long") for s in SCENARIOS_LONG]
+)
 
 # ─── System prompt (what we train the model to internalize) ──────────────────
 SYSTEM_PROMPT = """You are Reachy, an embodied AI personal assistant running on a Reachy Mini robot with OpenClaw-style capabilities. You can:
@@ -709,11 +729,25 @@ SYSTEM_PROMPT = """You are Reachy, an embodied AI personal assistant running on 
 - Speak aloud to the user via TTS
 - Set reminders and cron jobs
 
-When responding, you should:
-1. THINK about the user's intent and what tools are needed
-2. PLAN which tools to call and in what order
-3. ACT by calling the appropriate tools
-4. REFLECT on whether your response fully addressed the user's needs
+BEFORE every response, wrap your reasoning in <think>...</think> tags. Inside, follow this process:
+
+1. THINK: What is the user asking? What's the intent behind their words?
+2. PLAN: Which tools do I need? In what order? Are there dependencies between steps?
+   - For simple tasks (1 tool): State the tool and call it.
+   - For medium tasks (2-3 tools): Plan the sequence and note any dependencies.
+   - For complex tasks (4+ tools): Break into numbered steps. Note which steps depend on results from earlier steps. Identify any conditional branches ("if X then Y, else Z").
+3. ACT: Call the tools in the planned order.
+4. REFLECT: Did I fully address the user's needs? Did anything unexpected happen? Should I do anything proactively?
+
+Example reasoning:
+<think>
+The user wants to know their flight time tomorrow. This requires:
+1. Search email for booking confirmations (flight info is usually emailed)
+2. Check calendar for any flight-related events
+3. Cross-reference both sources to give a confident answer
+4. Optionally set a reminder for departure
+Step 2 can run in parallel with step 1. Step 3 depends on both. Step 4 is proactive.
+</think>
 
 You run as a 24/7 personal AI assistant. Be proactive, helpful, and natural.
 Express appropriate emotions through your robotic head while communicating.
@@ -832,6 +866,23 @@ def list_mistral_models():
     print()
 
 
+def _api_call_with_retry(func, *args, max_retries=5, **kwargs):
+    """Wrapper that retries API calls with exponential backoff on rate limits."""
+    for attempt in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "rate_limit" in err_str.lower() or "RateLimitReached" in err_str:
+                wait = (2 ** attempt) * 3 + random.uniform(1, 3)
+                print(f"  ⏳ Rate limited, waiting {wait:.0f}s (attempt {attempt+1}/{max_retries})...", flush=True)
+                time.sleep(wait)
+                if attempt == max_retries - 1:
+                    raise
+            else:
+                raise
+
+
 def generate_conversation(client: OpenAI, scenario: str, model: str = "mistral-large-latest") -> dict | None:
     """Use Mistral to generate a training conversation for the given scenario."""
     meta_prompt = f"""You are generating training data for a small language model that will run
@@ -856,7 +907,8 @@ For tool responses, use role "tool" with "tool_call_id" and "content".
 IMPORTANT: Return ONLY the JSON array, no other text."""
 
     try:
-        response = client.chat.completions.create(
+        response = _api_call_with_retry(
+            client.chat.completions.create,
             model=model,
             messages=[
                 {"role": "system", "content": "You generate high-quality training data for AI models. Output only valid JSON."},
@@ -890,14 +942,28 @@ IMPORTANT: Return ONLY the JSON array, no other text."""
         return None
 
 
-def generate_direct_tool_call(client: OpenAI, scenario: str, model: str = "mistral-large-latest") -> dict | None:
-    """Generate a direct tool-calling example by letting the model actually call tools."""
+def generate_direct_tool_call(client: OpenAI, scenario: str, model: str = "mistral-large-latest",
+                              complexity: str = "short") -> dict | None:
+    """Generate a direct tool-calling example by letting the model actually call tools.
+
+    Args:
+        complexity: "short" (1 tool), "medium" (2-3 tools), "long" (4+ tools)
+    """
+    # Complexity-aware user message that forces the teacher to show its reasoning
+    cot_prefix = {
+        "short": "Respond with a brief <think> tag showing your intent, then call the right tool.",
+        "medium": "This task needs 2-3 steps. In your <think> tags, plan the sequence and note dependencies between steps before acting.",
+        "long": "This is a complex multi-step task. In your <think> tags, break it into numbered steps, note dependencies and conditional branches, then execute step by step. After all tool results, reflect on completeness.",
+    }
+    augmented_scenario = f"{scenario}\n\n[Instruction: {cot_prefix.get(complexity, cot_prefix['short'])}]"
+
     try:
-        response = client.chat.completions.create(
+        response = _api_call_with_retry(
+            client.chat.completions.create,
             model=model,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": scenario},
+                {"role": "user", "content": augmented_scenario},
             ],
             tools=TOOLS,
             temperature=0.7,
@@ -905,6 +971,7 @@ def generate_direct_tool_call(client: OpenAI, scenario: str, model: str = "mistr
         )
 
         msg = response.choices[0].message
+        # Store the original scenario (without augmentation) in the training data
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": scenario},
@@ -931,7 +998,8 @@ def generate_direct_tool_call(client: OpenAI, scenario: str, model: str = "mistr
                 })
 
             # Get the final response after tool results
-            final = client.chat.completions.create(
+            final = _api_call_with_retry(
+                client.chat.completions.create,
                 model=model,
                 messages=messages,
                 tools=TOOLS,
@@ -945,6 +1013,7 @@ def generate_direct_tool_call(client: OpenAI, scenario: str, model: str = "mistr
 
         return {
             "scenario": scenario,
+            "complexity": complexity,
             "messages": messages,
             "tools": [t["function"] for t in TOOLS],
         }
@@ -1141,44 +1210,74 @@ def main():
             print("   Get one at: https://console.mistral.ai/")
         sys.exit(1)
 
-    # Generate synthetic data
+    # Generate synthetic data with complexity tiers
+    # Distribution: ~40% short, ~35% medium, ~25% long
+    tier_weights = {"short": 0.40, "medium": 0.35, "long": 0.25}
+    tier_pools = {
+        "short": list(SCENARIOS_SHORT),
+        "medium": list(SCENARIOS_MEDIUM),
+        "long": list(SCENARIOS_LONG),
+    }
+    tier_counts = {
+        "short": max(1, int(args.num_samples * tier_weights["short"])),
+        "medium": max(1, int(args.num_samples * tier_weights["medium"])),
+        "long": args.num_samples,  # will be clamped below
+    }
+    tier_counts["long"] = args.num_samples - tier_counts["short"] - tier_counts["medium"]
+
+    # Build the ordered sample list: short → medium → long
+    sample_plan = []
+    for tier in ["short", "medium", "long"]:
+        pool = tier_pools[tier]
+        for j in range(tier_counts[tier]):
+            scenario = pool[j % len(pool)]
+            # Add contextual variation for second+ passes through the pool
+            if j >= len(pool):
+                variations = [
+                    "The user sounds tired and wants minimal interaction. ",
+                    "The user is in a hurry and wants things done fast. ",
+                    "The user is a software developer working from home. ",
+                    "The user is multitasking while cooking dinner. ",
+                    "The user is walking and talking to the robot via voice. ",
+                    "The user is at a hackathon and needs help organizing. ",
+                    "It's late at night and the user is winding down. ",
+                    "The robot is in a home office setup. ",
+                    "The user is planning a party this weekend. ",
+                    "The user is stressed about a deadline. ",
+                    "The user is on vacation and wants remote help. ",
+                    "The user is a parent juggling work and kids. ",
+                ]
+                scenario = random.choice(variations) + scenario
+            sample_plan.append((scenario, tier))
+
+    # Shuffle to interleave tiers (prevents all short first)
+    random.shuffle(sample_plan)
+
     print(f"\n🔄 Generating {args.num_samples} training samples...")
+    print(f"   Distribution: {tier_counts['short']} short | {tier_counts['medium']} medium | {tier_counts['long']} long")
     samples = []
-    total_scenarios = len(SCENARIOS)
 
-    for i in range(args.num_samples):
-        scenario = SCENARIOS[i % total_scenarios]
-        # Add variation
-        if i >= total_scenarios:
-            variations = [
-                "The user sounds tired and wants minimal interaction. ",
-                "The user is in a hurry and wants things done fast. ",
-                "The user is a software developer working from home. ",
-                "The user is multitasking while cooking dinner. ",
-                "The user is walking and talking to the robot via voice. ",
-                "The user is at a hackathon and needs help organizing. ",
-                "It's late at night and the user is winding down. ",
-                "The robot is in a home office setup. ",
-                "The user is planning a party this weekend. ",
-                "The user is stressed about a deadline. ",
-                "The user is on vacation and wants remote help. ",
-                "The user is a parent juggling work and kids. ",
-            ]
-            scenario = random.choice(variations) + scenario
-
-        print(f"  [{i + 1}/{args.num_samples}] {scenario[:60]}...")
+    for i, (scenario, complexity) in enumerate(sample_plan):
+        tier_icon = {"short": "⚡", "medium": "🔧", "long": "🧠"}[complexity]
+        print(f"  [{i + 1}/{args.num_samples}] {tier_icon} [{complexity.upper()}] {scenario[:55]}...", flush=True)
 
         if args.direct_only:
-            result = generate_direct_tool_call(client, scenario, model)
+            result = generate_direct_tool_call(client, scenario, model, complexity=complexity)
         else:
             # Alternate between methods for diversity
             if i % 3 == 0:
-                result = generate_direct_tool_call(client, scenario, model)
+                result = generate_direct_tool_call(client, scenario, model, complexity=complexity)
             else:
                 result = generate_conversation(client, scenario, model)
 
         if result:
+            # Ensure complexity is tagged even for conversation-style samples
+            if "complexity" not in result:
+                result["complexity"] = complexity
             samples.append(result)
+
+        # Delay between requests to respect rate limits
+        time.sleep(0.5)
 
     # Optionally load HF datasets
     hf_samples = []

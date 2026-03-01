@@ -347,26 +347,46 @@ def main():
     use_wandb = not args.no_wandb and os.getenv("WANDB_API_KEY")
     if use_wandb:
         run_name = args.wandb_run_name or f"grpo-{Path(args.model).name}-g{args.num_generations}-lr{args.lr}"
-        wandb.init(
-            project=args.wandb_project,
-            name=run_name,
-            config={
-                "task": "grpo",
-                "sft_checkpoint": args.model,
-                "epochs": args.epochs,
-                "batch_size": args.batch_size,
-                "num_generations": args.num_generations,
-                "learning_rate": args.lr,
-                "lora_rank": 16,
-                "loss_type": "dapo",
-                "reward_functions": ["format_correctness", "tool_relevance", "response_quality", "thinking_quality"],
-                "gpu": gpu_name if torch.cuda.is_available() else "none",
-            },
-            tags=["grpo", "rl", "tool-calling", "reachy-copilot", "hackathon"],
-        )
-        print(f"   📊 W&B run: {wandb.run.url}")
+        try:
+            wandb.init(
+                project=args.wandb_project,
+                name=run_name,
+                config={
+                    "task": "grpo",
+                    "sft_checkpoint": args.model,
+                    "epochs": args.epochs,
+                    "batch_size": args.batch_size,
+                    "num_generations": args.num_generations,
+                    "learning_rate": args.lr,
+                    "lora_rank": 16,
+                    "loss_type": "dapo",
+                    "reward_functions": ["format_correctness", "tool_relevance", "response_quality", "thinking_quality"],
+                    "gpu": gpu_name if torch.cuda.is_available() else "none",
+                },
+                tags=["grpo", "rl", "tool-calling", "reachy-copilot", "hackathon"],
+                settings=wandb.Settings(init_timeout=300),
+            )
+            print(f"   📊 W&B run: {wandb.run.url}")
+        except Exception as e:
+            print(f"   ⚠️  W&B init failed ({e}) — continuing without logging")
+            use_wandb = False
     else:
         print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
+
+    # ─── Detect if input is a LoRA adapter or a full model ───────────────
+    adapter_config_path = Path(args.model) / "adapter_config.json"
+    is_lora_adapter = adapter_config_path.exists()
+
+    if is_lora_adapter:
+        # SFT output is a LoRA adapter — need to load base model + merge
+        import json as _json
+        with open(adapter_config_path) as f:
+            adapter_cfg = _json.load(f)
+        base_model_id = adapter_cfg.get("base_model_name_or_path", "")
+        print(f"   📎 Detected LoRA adapter — base model: {base_model_id}")
+        model_to_load = base_model_id
+    else:
+        model_to_load = args.model
 
     # ─── Load tokenizer ──────────────────────────────────────────────────
     print(f"\n📦 Loading tokenizer from {args.model}...")
@@ -375,7 +395,7 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
 
     # ─── Load model with QLoRA ───────────────────────────────────────────
-    print(f"\n🧠 Loading model from {args.model} with QLoRA...")
+    print(f"\n🧠 Loading model from {model_to_load} with QLoRA...")
     qlora_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -383,13 +403,60 @@ def main():
         bnb_4bit_use_double_quant=True,
     )
 
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        quantization_config=qlora_config,
-        device_map="auto",
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-    )
+    # Ministral 3 (Dec 2025) uses Mistral3ForConditionalGeneration (multimodal wrapper)
+    # which AutoModelForCausalLM doesn't support — load explicitly
+    from transformers import AutoConfig
+    model_config = AutoConfig.from_pretrained(model_to_load, trust_remote_code=True)
+    detected_model_type = getattr(model_config, "model_type", "")
+
+    if detected_model_type == "mistral3":
+        from transformers import Mistral3ForConditionalGeneration
+        print(f"   📎 Detected Mistral3 multimodal architecture — loading with Mistral3ForConditionalGeneration")
+
+        # Check if model is already quantized (e.g., FP8) — can't stack BnB on top
+        existing_quant = getattr(model_config, "quantization_config", None)
+        if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
+            quant_method = existing_quant["quant_method"]
+            print(f"   📎 Model is {quant_method}-quantized — dequantizing to BF16 for training")
+            from transformers import FineGrainedFP8Config
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                model_to_load,
+                device_map="auto",
+                trust_remote_code=True,
+                torch_dtype=torch.bfloat16,
+                quantization_config=FineGrainedFP8Config(dequantize=True),
+            )
+            # Clear quantization state so trainer doesn't reject training
+            if hasattr(model.config, 'quantization_config'):
+                model.config.quantization_config = None
+            if hasattr(model, 'is_quantized'):
+                model.is_quantized = False
+            if hasattr(model, 'hf_quantizer'):
+                model.hf_quantizer = None
+        else:
+            model = Mistral3ForConditionalGeneration.from_pretrained(
+                model_to_load,
+                quantization_config=qlora_config,
+                device_map="auto",
+                trust_remote_code=True,
+                torch_dtype=torch.bfloat16,
+            )
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_to_load,
+            quantization_config=qlora_config,
+            device_map="auto",
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+        )
+
+    # If input was a LoRA adapter, merge SFT weights into the base model
+    if is_lora_adapter:
+        from peft import PeftModel
+        print(f"   📎 Merging SFT LoRA adapter into base model...")
+        model = PeftModel.from_pretrained(model, args.model)
+        model = model.merge_and_unload()
+        print(f"   ✅ SFT adapter merged successfully")
 
     # ─── LoRA for GRPO (separate adapter from SFT) ──────────────────────
     lora_config = LoraConfig(
@@ -416,7 +483,6 @@ def main():
         learning_rate=args.lr,
         num_generations=args.num_generations,    # G completions per prompt
         max_completion_length=1024,              # Max tokens for completions
-        max_prompt_length=512,                   # Max tokens for prompts
         logging_steps=5,
         save_strategy="steps",
         save_steps=50,                           # Checkpoint every 50 steps

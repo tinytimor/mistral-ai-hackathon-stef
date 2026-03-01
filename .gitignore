@@ -40,3 +40,10 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# llama.cpp (cloned for quantization — not part of this repo)
+llama.cpp/
+
+# Pipeline logs (too many to track)
+pipeline_stdout.log
+logs/*.log

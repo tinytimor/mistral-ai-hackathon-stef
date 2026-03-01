@@ -121,11 +121,13 @@ notify_completion() {
     local message="$2"
     local elapsed=$(( ($(date +%s) - PIPELINE_START_EPOCH) / 60 ))
 
-    # W&B alert (visible on phone/laptop)
-    python3 -c "
+    # W&B alert (visible on phone/laptop) — skip in offline mode
+    if [ "${WANDB_MODE:-}" != "offline" ]; then
+        timeout 30 python3 -c "
 import wandb
 try:
-    wandb.init(project='${WANDB_PROJECT:-reachy-copilot}', name='pipeline-alert', reinit=True)
+    wandb.init(project='${WANDB_PROJECT:-reachy-copilot}', name='pipeline-alert', reinit=True,
+              settings=wandb.Settings(init_timeout=20))
     wandb.alert(
         title='Pipeline $status',
         text='$message (${elapsed}min elapsed)',
@@ -135,6 +137,9 @@ try:
 except Exception as e:
     print(f'W&B alert failed: {e}')
 " 2>/dev/null || true
+    else
+        log_info "W&B offline mode — skipping alert notification"
+    fi
 
     log_info "Pipeline $status after ${elapsed} minutes"
 }
@@ -235,8 +240,13 @@ else:
 
 # Check W&B
 if [ -n "${WANDB_API_KEY:-}" ]; then
-    log_success "W&B API key configured — experiments will be tracked"
-    python3 -c "import wandb; wandb.login(key='${WANDB_API_KEY}', relogin=True)" 2>/dev/null || true
+    if [ "${WANDB_MODE:-}" = "offline" ]; then
+        log_success "W&B configured in OFFLINE mode — logs saved locally, sync later with: wandb sync wandb/latest-run"
+    else
+        log_success "W&B API key configured — experiments will be tracked online"
+        timeout 15 python3 -c "import wandb; wandb.login(key='${WANDB_API_KEY}', relogin=True)" 2>/dev/null || \
+            log_warn "W&B login timed out — continuing anyway (offline logs will still work)"
+    fi
 else
     log_warn "WANDB_API_KEY not set — experiments will NOT be tracked"
 fi
@@ -423,7 +433,7 @@ if [ "$SKIP_DATA" = false ]; then
     if [ "$QUICK_MODE" = true ]; then
         NUM_SAMPLES=50
     else
-        NUM_SAMPLES=500
+        NUM_SAMPLES=100
     fi
 
     TRAINING_DATA="$DATA_DIR/training_data.jsonl"
@@ -466,12 +476,12 @@ if [ "$SKIP_DATA" = false ]; then
     fi
 else
     log_info "Skipping data generation (--skip-data)"
-    TRAINING_DATA="$DATA_DIR/training_data.jsonl"
-    if [ ! -f "$TRAINING_DATA" ]; then
-        # Try augmented
+    # Prefer augmented data (more samples) over base data
+    if [ -f "$DATA_DIR/training_data_augmented.jsonl" ]; then
         TRAINING_DATA="$DATA_DIR/training_data_augmented.jsonl"
-    fi
-    if [ ! -f "$TRAINING_DATA" ]; then
+    elif [ -f "$DATA_DIR/training_data.jsonl" ]; then
+        TRAINING_DATA="$DATA_DIR/training_data.jsonl"
+    else
         log_error "No training data found! Run without --skip-data first."
         log_warn "⏭️  SFT and GRPO phases will be skipped (no training data)"
         PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
@@ -499,11 +509,11 @@ if [ "$QUICK_MODE" = true ]; then
     )
 else
     SFT_EXPERIMENTS=(
-        "16 3 2e-4 4 2048 sft-r16-lr2e4"
-        "32 3 2e-4 4 2048 sft-r32-lr2e4"
-        "64 3 2e-4 4 2048 sft-r64-lr2e4"
-        "32 3 1e-4 4 2048 sft-r32-lr1e4"
-        "32 5 2e-4 4 2048 sft-r32-ep5-lr2e4"
+        "16 3 2e-4 2 1024 sft-r16-lr2e4"
+        "32 3 2e-4 2 1024 sft-r32-lr2e4"
+        "64 3 2e-4 2 1024 sft-r64-lr2e4"
+        "32 3 1e-4 2 1024 sft-r32-lr1e4"
+        "32 5 2e-4 2 1024 sft-r32-ep5-lr2e4"
     )
 fi
 
@@ -521,7 +531,7 @@ fi
 run_sft_experiment() {
     local exp="$1"
     local LORA_R EPOCHS LR BATCH_SIZE MAX_SEQ RUN_NAME
-    read -r LORA_R EPOCHS LR BATCH_SIZE MAX_SEQ RUN_NAME <<< "$exp"
+    IFS=' ' read -r LORA_R EPOCHS LR BATCH_SIZE MAX_SEQ RUN_NAME <<< "$exp"
 
     local OUTPUT="$MODEL_DIR/$RUN_NAME"
 
@@ -551,7 +561,7 @@ run_sft_experiment() {
 
 for exp in "${SFT_EXPERIMENTS[@]}"; do
     EXP_NUM=$((EXP_NUM + 1))
-    read -r _ _ _ _ _ RUN_NAME <<< "$exp"
+    IFS=' ' read -r _ _ _ _ _ RUN_NAME <<< "$exp"
 
     log_info "━━━ SFT Experiment $EXP_NUM/${#SFT_EXPERIMENTS[@]}: $RUN_NAME ━━━"
 
@@ -638,7 +648,7 @@ fi
 
 for exp in "${GRPO_EXPERIMENTS[@]}"; do
     EXP_NUM=$((EXP_NUM + 1))
-    read -r NUM_GEN EPOCHS LR RUN_NAME <<< "$exp"
+    IFS=' ' read -r NUM_GEN EPOCHS LR RUN_NAME <<< "$exp"
     OUTPUT="$MODEL_DIR/$RUN_NAME"
 
     log_info "━━━ GRPO Experiment $EXP_NUM/${#GRPO_EXPERIMENTS[@]}: $RUN_NAME ━━━"

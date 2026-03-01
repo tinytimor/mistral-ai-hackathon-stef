@@ -377,10 +377,24 @@ Shortcut (no training, deploy pre-quantized):
 | `response_quality` | Empathy, completeness, professionalism | 0.25 |
 | `thinking_quality` | Think-plan-act-reflect reasoning | 0.20 |
 
+### Actual Training Results (Feb 28, 2026)
+
+| Phase | Best Model | Metric | Value | Notes |
+|-------|-----------|--------|-------|-------|
+| SFT | `sft-r64-lr2e4` | eval_loss | **0.266** | LoRA r=64, lr=2e-4, 3 epochs |
+| GRPO | `grpo-g4-test` | best_reward | **-0.5** | 4 generations, 1 epoch, on sft-r64-lr2e4 |
+| Quantization | `model-q4_k_m.gguf` | size | **2.0 GB** | From 6.4 GB F16 → Q4_K_M |
+
+**Key technical notes:**
+- Base model is FP8-quantized on HuggingFace → requires `FineGrainedFP8Config(dequantize=True)` to load for training
+- SFT outputs LoRA adapters (not full models) → GRPO must detect + merge adapter before training
+- Quantize pipeline: dequant FP8 → BF16 → merge LoRA → save → convert_hf_to_gguf.py → llama-quantize Q4_K_M
+- Verified tool calling works on quantized model: `search_web`, `calendar_list_events`, `look_at`, `speak`
+
 ### Experiment Tracking
 All training tracked via **Weights & Biases**:
 - Project: `reachy-copilot`
-- Dashboard: https://wandb.ai/tinytimor/reachy-copilot
+- Dashboard: https://wandb.ai/thalamus_ai/reachy-copilot
 - Metrics: loss, learning rate, gradient norms, reward scores, GPU utilization
 
 ### Best-Model Checkpointing
@@ -429,6 +443,88 @@ The pipeline automatically selects the best model from each sweep:
 - **SSH tunnel** for terminal + port forwarding
 - **Tailscale** for secure remote access over cellular
 - **W&B Dashboard** for monitoring training from anywhere
+
+### Deploying to Orin Nano — Step by Step
+
+After training on the RTX 5090, deploy the fine-tuned model to the Orin Nano:
+
+```bash
+# ── On the RTX 5090 (training machine) ──────────────────────
+
+# 1. Merge LoRA adapter + quantize to GGUF (produces ~2 GB file)
+python scripts/04_quantize_deploy.py \
+    --model models/sft-r64-lr2e4 \
+    --output models/reachy-copilot-gguf \
+    --llama-cpp ./llama.cpp
+
+# 2. Copy model + Modelfile to the Orin Nano
+scp models/reachy-copilot-gguf/model-q4_k_m.gguf orin@192.168.1.50:~/reachy-model/
+scp models/reachy-copilot-gguf/Modelfile orin@192.168.1.50:~/reachy-model/
+
+# ── On the Orin Nano (edge device) ──────────────────────────
+ssh orin@192.168.1.50
+
+# 3. Install Ollama (one-time)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 4. Create the model in Ollama
+cd ~/reachy-model
+ollama create reachy-copilot -f Modelfile
+
+# 5. Test the model
+ollama run reachy-copilot "Hello! Search the web for today's weather."
+# Should output: [TOOL_CALLS]search_web[ARGS]{"query": "..."}
+
+# 6. Clone the repo and start the bridge server
+git clone https://github.com/tinytimor/mistral-ai-hackathon-stef.git
+cd mistral-ai-hackathon-stef
+pip install -r requirements.txt
+python scripts/06_openclaw_bridge.py --standalone --reachy-ip <REACHY_IP>
+
+# 7. Test the full pipeline
+curl -X POST http://localhost:8000/chat \
+    -H "Content-Type: application/json" \
+    -d '{"message": "Look at me and say hello!"}'
+
+# 8. Verify memory (Ollama API)
+curl http://localhost:11434/api/chat -d '{
+    "model": "reachy-copilot",
+    "messages": [{"role": "user", "content": "What can you do?"}],
+    "stream": false
+}'
+```
+
+### Orin Nano Memory Budget (Verified)
+
+```
+Model (Q4_K_M ~2GB)   : ~2.0 GB
+KV Cache (2048 ctx)    : ~0.5 GB
+CUDA runtime           : ~0.8 GB
+OS + Reachy SDK        : ~1.5 GB
+Bridge server + FastAPI: ~0.3 GB
+────────────────────────────────
+Total                  : ~5.1 GB  ✅  (2.9 GB headroom)
+```
+
+### Troubleshooting on Orin
+
+```bash
+# Check Ollama is running
+sudo systemctl status ollama
+
+# Check GPU memory
+tegrastats
+
+# Check CUDA is available
+python3 -c "import torch; print(torch.cuda.is_available())"
+
+# If OOM: reduce context length in Modelfile
+# Change: PARAMETER num_ctx 2048  →  PARAMETER num_ctx 1024
+
+# List models loaded
+ollama list
+ollama ps   # shows currently loaded models + VRAM usage
+```
 
 ---
 
@@ -562,12 +658,22 @@ disown
 | Component | Port | Host | Protocol |
 |-----------|------|------|----------|
 | OpenClaw Gateway | 3000 | 5090 Desktop | HTTP/WS |
-| Ollama API | 11434 | Orin Nano | HTTP |
-| Reachy Bridge | 8000 | Orin Nano | HTTP/REST |
+| Ollama API | 11434 | Orin Nano (192.168.1.50) | HTTP |
+| Reachy Bridge | 8000 | Orin Nano (192.168.1.50) | HTTP/REST |
 | Reachy gRPC | 50051 | Reachy Mini | gRPC |
 | VNC Server | 5901 | Orin Nano | VNC |
-| W&B Dashboard | — | wandb.ai | HTTPS |
-| Azure Foundry | — | *.openai.azure.com | HTTPS |
+| W&B Dashboard | — | wandb.ai/thalamus_ai/reachy-copilot | HTTPS |
+| Mistral API | — | api.mistral.ai | HTTPS |
+
+### Key Files for Orin Deployment
+
+| File | Purpose |
+|------|---------|
+| `models/reachy-copilot-gguf/model-q4_k_m.gguf` | Quantized model (2.0 GB) — copy to Orin |
+| `models/reachy-copilot-gguf/Modelfile` | Ollama config — copy to Orin |
+| `scripts/06_openclaw_bridge.py` | Bridge server — run on Orin |
+| `scripts/05_memory_manager.py` | Memory service (optional) — run on Orin |
+| `docs/ORIN-REACHY-SETUP.md` | Full hardware setup guide |
 
 ---
 
