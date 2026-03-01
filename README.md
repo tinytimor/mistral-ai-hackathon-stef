@@ -1,60 +1,79 @@
 # 🤖 Reachy Copilot — Mistral AI Hackathon 2026
 
-> **Embodied AI assistant** running entirely on the edge — fine-tuned Ministral 3B
-> via Ollama + OpenClaw Gateway + clawd-reachy-mini on Jetson Orin Nano,
-> with Mistral Large as cloud fallback. Reachy Mini robot as physical embodiment.
+> **Embodied AI assistant** powered by Mistral — fine-tuned Ministral 3B on
+> NVIDIA Orin Nano + Mistral API for vision, voice, and web search,
+> all embodied in a Reachy Mini robot that sees, hears, speaks, and moves.
 
 **Mistral Worldwide Hackathon** — Feb 28 – Mar 1, 2026, NYC
 
 ---
 
-## 🏗️ Architecture
+## 🎬 What It Does
 
-**Everything runs on the Orin Nano.** The RTX 5090 is only for training.
+Reachy Copilot is a **physical robot assistant** you can talk to. It:
+
+- **Sees** — Camera captures via Reachy's IMX708 → Pixtral vision (Mistral API)
+- **Hears** — 4 onboard mics → Voxtral ASR (Mistral API) for speech-to-text
+- **Thinks** — Fine-tuned Ministral 3B running locally on Ollama with tool-calling
+- **Speaks** — edge-tts → Reachy's built-in speaker via dmix audio
+- **Moves** — Head tracking, nodding, emotions via reachy-mini SDK
+- **Searches** — Brave Search API for real-time web queries
+- **Routes** — OpenClaw Gateway for session management and tool orchestration
+
+### Demo Modes
+```bash
+python demo.py              # Text input — type to chat
+python demo.py --voice      # Voice input — speak to Reachy via mic + Voxtral ASR
+```
+
+---
+
+## 🏗️ Architecture — What Runs Where
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│              ORIN NANO SUPER (10.0.0.232) — All-in-One Edge             │
-│                                                                          │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────────┐  │
-│  │ 🦞 OpenClaw      │  │ ⚡ Ollama        │  │ 🎤 clawd-reachy-mini │  │
-│  │   Gateway        │◄─│   reachy-copilot │  │   (Voice + Robot)    │  │
-│  │   :18789         │  │   :11434         │  │   Whisper STT        │  │
-│  │   Skills + Mem   │  │   Ministral 3B   │  │   ElevenLabs TTS     │  │
-│  │   Multi-Channel  │  │   Q4_K_M (2 GB)  │  │   Wake Word          │  │
-│  └────────┬─────────┘  └──────────────────┘  └──────────┬────────────┘  │
-│           │                                             │               │
-│           │          ┌──────────────────┐                │               │
-│           └─────────►│ 🤖 Reachy Mini  │◄───────────────┘               │
-│                      │   gRPC :50051   │                                │
-│                      │   Head + Camera │                                │
-│                      │   4 Mics + Spkr │                                │
-│                      └──────────────────┘                               │
-│                                                                          │
-│  ── Cloud Fallback (Mistral API) ──────────────────────────────────────  │
-│  │  mistral/mistral-large-latest — complex reasoning only              │ │
-│  └─────────────────────────────────────────────────────────────────────  │
-└──────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    WHAT RUNS WHERE                               │
+│                                                                  │
+│  🟢 LOCAL (Orin Nano)              🔵 MISTRAL API (Cloud)       │
+│  ├─ Ministral 3B (Ollama)          ├─ Vision: mistral-small     │
+│  │  Chat + tool-calling            │  (Pixtral built-in)        │
+│  ├─ Robot control (reachy SDK)     ├─ ASR: voxtral-mini-2602    │
+│  │  Head, antennas, emotions       │  (speech-to-text)          │
+│  ├─ OpenClaw Gateway (:18789)      ├─ Fallback: mistral-large   │
+│  │  Memory, sessions, routing      │  (complex reasoning)       │
+│  └─ Camera capture (SSH→Reachy)    └─ Web: Brave Search API     │
+│                                                                  │
+│  🟡 EDGE-TTS (Microsoft, free)                                  │
+│  └─ Text-to-speech → Reachy speaker                             │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Conversation Flow
 ```
-Microphone → clawd-reachy-mini (Whisper STT) → OpenClaw Gateway → Ollama (reachy-copilot)
-                                                                        ↓
-                                                                 Tool Calls
-                                                    (email, calendar, web, smart home, ...)
-                                                                        ↓
-                                                                 Reachy Mini Robot
-                                                                 (look, speak, express)
-                                                                        ↓
-                                              clawd-reachy-mini (ElevenLabs TTS) → Speaker
+User speaks → Reachy Mic (dsnoop) → SSH → Orin Nano
+                                            ↓
+                              Voxtral ASR (Mistral API) → text
+                                            ↓
+                              Ministral 3B (Ollama, LOCAL) → response + tool calls
+                                            ↓
+                              ┌─────────────────────────────────┐
+                              │ Tool Calls:                      │
+                              │  search_web → Brave Search API   │
+                              │  look_at → reachy SDK (LOCAL)    │
+                              │  speak → edge-tts → speaker      │
+                              │  see → SSH camera → Pixtral API  │
+                              │  express → reachy SDK (LOCAL)    │
+                              └─────────────────────────────────┘
+                                            ↓
+                              edge-tts → ffmpeg → SCP → aplay on Reachy speaker
 ```
 
-### Key Insight: 5090 Trains, Orin Runs
-The RTX 5090 is used to **train** specialized models (SFT + GRPO distillation), but
-at inference time everything runs on the **Orin Nano** (8GB) via Ollama + OpenClaw Gateway
-+ clawd-reachy-mini — fully offline, no 5090 needed. The cloud (Mistral API / Mistral Large)
-is an optional fallback for complex reasoning only.
+### Key Design: Split Local + API
+
+The fine-tuned **Ministral 3B** runs locally on the Orin Nano (<1s latency) and handles
+chat, tool-calling, and robot control. Heavy lifting (vision, ASR, web search) goes to
+**Mistral API** and **Brave Search**. This gives us the best of both worlds: fast local
+reactions with powerful cloud capabilities.
 
 ---
 
@@ -62,88 +81,37 @@ is an optional fallback for complex reasoning only.
 
 | Device | Role | Specs |
 |--------|------|-------|
-| RTX 5090 | Training + cloud inference | 32GB VRAM, Blackwell arch, QLoRA fine-tuning |
-| NVIDIA Orin Nano Super | Edge deployment | 8GB, 67 TOPS, JetPack 6.2 |
-| Reachy Mini | Embodied robot | 6-DOF head, antennas, camera, 4 mics, speaker |
-| MacBook Pro | Remote monitoring | SSH, VNC, W&B dashboard from the train |
+| NVIDIA Orin Nano Super | Edge inference + orchestration | 8GB unified memory, 67 TOPS, JetPack 6.2 |
+| Reachy Mini | Embodied robot | 6-DOF head, antennas, IMX708 camera, 4 mics, speaker |
+| RTX 5090 | Training only (not runtime) | 32GB VRAM, QLoRA SFT + GRPO |
 
 ---
 
-## 🚀 Quick Start
-
-### Option A: Full Training Pipeline (RTX 5090)
+## 🚀 Quick Start — Run the Demo
 
 ```bash
-# 1. Clone & setup
+# On the Orin Nano (or any machine with Ollama + SSH access to Reachy):
+
+# 1. Ensure Ollama is running with our model
+ollama list   # should show reachy-copilot:latest (~2.0 GB)
+
+# 2. Clone this repo and install deps
 git clone https://github.com/tinytimor/mistral-ai-hackathon-stef.git
 cd mistral-ai-hackathon-stef
-cp .env.example .env   # Edit with your API keys
-pip install -r requirements.txt
 
-# 2. Download base models
-python scripts/07_download_models.py
+# 3. Set up Python env (we use clawd-reachy-mini's venv)
+cd ~/clawd-reachy-mini
+uv sync --extra dev --extra audio
 
-# 3. Test connection
-python scripts/00_quickstart.py --provider mistral
+# 4. Run the demo
+.venv/bin/python3 demo.py              # text mode
+.venv/bin/python3 demo.py --voice      # voice mode (mic + Voxtral ASR)
 
-# 4. Generate training data (teacher → student distillation)
-python scripts/01_generate_training_data.py --provider mistral --model mistral-large-latest --num-samples 500
-
-# 5. Fine-tune on RTX 5090
-python scripts/02_sft_qlora.py --data data/training_data.jsonl --output models/ministral-3b-sft
-
-# 6. GRPO reinforcement learning
-python scripts/03_grpo_agent.py --model models/ministral-3b-sft --output models/ministral-3b-grpo
-
-# 7. Quantize & deploy to Orin Nano
-python scripts/04_quantize_deploy.py --model models/ministral-3b-grpo
-
-# 8. Run the automated sweep (unattended):
-nohup ./run_experiments.sh > pipeline.log 2>&1 & disown
-```
-
-### Option B: Quick Deploy (No Training, Pre-Quantized)
-
-```bash
-# Download pre-quantized GGUFs and deploy directly:
-python scripts/07_download_models.py --no-train
-
-# Or download the full edge stack (Ministral + Voxtral audio):
-python scripts/07_download_models.py --edge-stack
-
-# Copy to Orin Nano and create Ollama model:
-scp -r models/ slehman@10.0.0.232:~/reachy-model/
-ssh slehman@10.0.0.232 'cd ~/reachy-model && ollama create reachy-copilot -f Modelfile'
-```
-
-### Option C: Deploy Fine-Tuned Model to Orin Nano
-
-See the full step-by-step in [AGENTS.md](AGENTS.md#8-deployment-topology), but the short version:
-
-```bash
-# On the 5090 (after training completes):
-# 1. Merge LoRA + quantize to GGUF Q4_K_M (~2 GB)
-python scripts/04_quantize_deploy.py --model models/sft-r64-lr2e4 \
-    --output models/reachy-copilot-gguf --llama-cpp ./llama.cpp
-
-# 2. Copy the GGUF + Modelfile to the Orin Nano:
-scp models/reachy-copilot-gguf/model-q4_k_m.gguf slehman@10.0.0.232:~/reachy-model/
-scp models/reachy-copilot-gguf/Modelfile slehman@10.0.0.232:~/reachy-model/
-
-# 3. SSH into the Orin and create the Ollama model:
-ssh slehman@10.0.0.232
-cd ~/reachy-model
-ollama create reachy-copilot -f Modelfile
-ollama run reachy-copilot "Hello Reachy!"   # Test it
-
-# 4. Install OpenClaw Gateway + clawd-reachy-mini on Orin:
-curl -fsSL https://openclaw.ai/install.sh | bash
-openclaw onboard --install-daemon
-git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
-cd clawd-reachy-mini && uv sync --extra dev --extra audio
-
-# 5. Configure & start (see AGENTS.md for full openclaw.json config)
-uv run clawd-reachy --gateway-host localhost --gateway-port 18789
+# Environment variables (optional — defaults are set in demo.py):
+export REACHY_IP=10.0.0.129
+export MISTRAL_API_KEY=your-key
+export BRAVE_API_KEY=your-key
+export MIC_SECONDS=5            # recording duration per voice turn
 ```
 
 ---
