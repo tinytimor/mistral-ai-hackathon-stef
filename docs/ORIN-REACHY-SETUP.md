@@ -341,287 +341,50 @@ curl http://localhost:11434/api/generate -d '{
 
 ## 7. Bridge Server (LLM → Robot) {#bridge-server}
 
-This FastAPI server runs on the Orin, connecting the LLM (Ollama) to the robot (Reachy SDK).
+The bridge server connects the LLM (Ollama) to the robot (Reachy SDK) and runs
+entirely on the Orin Nano. Rather than copying scripts manually, clone the repo:
 
-Save as `~/reachy-bridge/server.py` on the Orin:
-
-```python
-#!/usr/bin/env python3
-"""
-reachy_bridge_server.py — FastAPI bridge connecting Ollama LLM to Reachy Mini.
-Runs on the Orin Nano.
-
-Usage:
-    cd ~/reachy-bridge
-    uvicorn server:app --host 0.0.0.0 --port 8000
-"""
-
-import asyncio
-import json
-import re
-import time
-from contextlib import asynccontextmanager
-from typing import Optional
-
-import httpx
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from reachy2_sdk import ReachySDK
-
-# ─── Configuration ────────────────────────────────────────────────────────────
-REACHY_IP = "192.168.1.XX"       # ← Replace with your Reachy's IP
-OLLAMA_URL = "http://localhost:11434"
-MODEL_NAME = "reachy-copilot"     # Or whatever you named it in Ollama
-
-# ─── Global state ─────────────────────────────────────────────────────────────
-reachy: Optional[ReachySDK] = None
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Connect to Reachy on startup, disconnect on shutdown."""
-    global reachy
-    print(f"🤖 Connecting to Reachy at {REACHY_IP}...")
-    reachy = ReachySDK(host=REACHY_IP)
-    if reachy.is_connected():
-        reachy.turn_on()
-        reachy.head.goto_posture("default", wait=True)
-        print("✅ Reachy connected and ready!")
-    else:
-        print("⚠️ Reachy not connected — running in LLM-only mode")
-        reachy = None
-    yield
-    if reachy:
-        reachy.turn_off()
-        reachy.disconnect()
-        print("🔌 Reachy disconnected")
-
-
-app = FastAPI(title="Reachy Bridge", lifespan=lifespan)
-
-
-# ─── Request/Response Models ─────────────────────────────────────────────────
-
-class ChatRequest(BaseModel):
-    message: str
-    context: Optional[str] = None
-
-class ChatResponse(BaseModel):
-    response: str
-    tool_calls_executed: list[dict] = []
-    thinking: Optional[str] = None
-
-
-# ─── Tool Execution ──────────────────────────────────────────────────────────
-
-EMOTION_MOVEMENTS = {
-    "happy": {"head": [0, -5, 0], "antennas": [20, -20]},
-    "sad": {"head": [0, -20, 0], "antennas": [-10, 10]},
-    "curious": {"head": [15, -5, 20], "antennas": [30, -5]},
-    "surprised": {"head": [0, 5, 0], "antennas": [40, -40]},
-    "thinking": {"head": [5, -10, 15], "antennas": [10, -10]},
-    "nodding": None,  # Special handling
-    "shaking_no": None,  # Special handling
-}
-
-
-async def execute_tool(name: str, args: dict) -> dict:
-    """Execute a tool call on the robot."""
-    global reachy
-
-    if name == "robot_look_at":
-        if reachy:
-            x = args.get("x", 0.5)
-            y = args.get("y", 0)
-            z = args.get("z", 0.2)
-            duration = args.get("duration", 1.0)
-            reachy.head.look_at(x=x, y=y, z=z, duration=duration, wait=True)
-        return {"status": "success", "action": f"Looking at ({args.get('x')}, {args.get('y')}, {args.get('z')})"}
-
-    elif name == "robot_express":
-        emotion = args.get("emotion", "happy")
-        if reachy:
-            if emotion == "nodding":
-                reachy.head.goto([0, -20, 0], duration=0.3, wait=True)
-                reachy.head.goto([0, 5, 0], duration=0.3, wait=True)
-                reachy.head.goto([0, -15, 0], duration=0.3, wait=True)
-                reachy.head.goto_posture("default", duration=0.5, wait=True)
-            elif emotion == "shaking_no":
-                reachy.head.goto([0, -10, 20], duration=0.3, wait=True)
-                reachy.head.goto([0, -10, -20], duration=0.3, wait=True)
-                reachy.head.goto([0, -10, 15], duration=0.3, wait=True)
-                reachy.head.goto_posture("default", duration=0.5, wait=True)
-            elif emotion in EMOTION_MOVEMENTS:
-                mv = EMOTION_MOVEMENTS[emotion]
-                reachy.head.goto(mv["head"], duration=0.5, wait=True)
-                if reachy.head.l_antenna and mv.get("antennas"):
-                    reachy.head.l_antenna.goto(mv["antennas"][0], duration=0.3)
-                    reachy.head.r_antenna.goto(mv["antennas"][1], duration=0.3, wait=True)
-                await asyncio.sleep(1.0)
-                reachy.head.goto_posture("default", duration=0.5, wait=True)
-        return {"status": "success", "emotion": emotion}
-
-    elif name == "robot_speak":
-        text = args.get("text", "")
-        # TODO: Integrate ElevenLabs or Piper TTS here
-        # For now, just log it
-        print(f"🔊 SPEAK: {text}")
-        return {"status": "success", "text": text, "note": "TTS not yet connected"}
-
-    elif name == "search_web":
-        query = args.get("query", "")
-        try:
-            from ddgs import DDGS
-            results = DDGS().text(query, max_results=args.get("max_results", 3))
-            return {"results": results}
-        except ImportError:
-            return {"error": "ddgs not installed. pip install ddgs"}
-        except Exception as e:
-            return {"error": str(e)}
-
-    elif name == "get_patient_summary":
-        # Mock patient data for demo
-        return {
-            "patient_id": args.get("patient_id", "UNKNOWN"),
-            "name": "Demo Patient",
-            "conditions": ["Type 2 Diabetes"],
-            "medications": ["Metformin 500mg"],
-            "vitals": {"bp": "120/80", "hr": 72},
-        }
-
-    elif name == "set_reminder":
-        return {
-            "status": "success",
-            "message": args.get("message", ""),
-            "minutes": args.get("minutes", 0),
-        }
-
-    return {"status": "unknown_tool", "name": name}
-
-
-def parse_tool_calls(text: str) -> list[dict]:
-    """Parse <tool_call> tags from LLM output."""
-    calls = []
-    pattern = r'<tool_call>\s*(.*?)\s*</tool_call>'
-    matches = re.findall(pattern, text, re.DOTALL)
-    for match in matches:
-        try:
-            parsed = json.loads(match)
-            calls.append(parsed)
-        except json.JSONDecodeError:
-            continue
-    return calls
-
-
-def extract_thinking(text: str) -> Optional[str]:
-    """Extract <think> content from LLM output."""
-    match = re.search(r'<think>(.*?)</think>', text, re.DOTALL)
-    return match.group(1).strip() if match else None
-
-
-# ─── API Endpoints ────────────────────────────────────────────────────────────
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """Send a message to the LLM and execute any tool calls on the robot."""
-
-    # Build the prompt
-    system_prompt = """You are Reachy, an embodied AI assistant. Use tools when needed.
-Wrap your thinking in <think></think> tags.
-Use <tool_call>{"name": "...", "arguments": {...}}</tool_call> to call tools."""
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-    ]
-    if request.context:
-        messages.append({"role": "system", "content": f"Context: {request.context}"})
-    messages.append({"role": "user", "content": request.message})
-
-    # Call Ollama
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        response = await client.post(
-            f"{OLLAMA_URL}/api/chat",
-            json={
-                "model": MODEL_NAME,
-                "messages": messages,
-                "stream": False,
-            },
-        )
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail=f"Ollama error: {response.text}")
-
-    result = response.json()
-    llm_response = result.get("message", {}).get("content", "")
-
-    # Extract thinking
-    thinking = extract_thinking(llm_response)
-
-    # Parse and execute tool calls
-    tool_calls = parse_tool_calls(llm_response)
-    executed = []
-    for tc in tool_calls:
-        name = tc.get("name", "")
-        args = tc.get("arguments", {})
-        print(f"🔧 Executing tool: {name}({args})")
-        result = await execute_tool(name, args)
-        executed.append({"name": name, "arguments": args, "result": result})
-
-    # Clean up the response (remove tool_call tags for the user)
-    clean_response = re.sub(r'<tool_call>.*?</tool_call>', '', llm_response, flags=re.DOTALL)
-    clean_response = re.sub(r'<think>.*?</think>', '', clean_response, flags=re.DOTALL)
-    clean_response = clean_response.strip()
-
-    return ChatResponse(
-        response=clean_response,
-        tool_calls_executed=executed,
-        thinking=thinking,
-    )
-
-
-@app.get("/health")
-async def health():
-    """Health check."""
-    return {
-        "status": "ok",
-        "reachy_connected": reachy is not None and reachy.is_connected(),
-        "ollama_model": MODEL_NAME,
-    }
-
-
-@app.post("/robot/look_at")
-async def robot_look_at(x: float = 0.5, y: float = 0, z: float = 0.2, duration: float = 1.0):
-    """Direct robot control — make Reachy look at a point."""
-    result = await execute_tool("robot_look_at", {"x": x, "y": y, "z": z, "duration": duration})
-    return result
-
-
-@app.post("/robot/express/{emotion}")
-async def robot_express(emotion: str, intensity: float = 0.7):
-    """Direct robot control — make Reachy express an emotion."""
-    result = await execute_tool("robot_express", {"emotion": emotion, "intensity": intensity})
-    return result
-
-
-@app.post("/robot/nod")
-async def robot_nod():
-    """Quick nod gesture."""
-    result = await execute_tool("robot_express", {"emotion": "nodding"})
-    return result
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-```
-
-### Run the Bridge Server
+### Clone the Repo on the Orin
 
 ```bash
+# On the Orin Nano:
 source ~/reachy-env/bin/activate
-cd ~/reachy-bridge
-pip install fastapi uvicorn httpx ddgs
-uvicorn server:app --host 0.0.0.0 --port 8000
+cd ~
+
+git clone https://github.com/tinytimor/mistral-ai-hackathon-stef.git
+cd mistral-ai-hackathon-stef
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy your .env (or create one)
+cp .env.example .env
+# Edit REACHY_IP, OLLAMA_MODEL, etc.
+```
+
+### Start the Bridge
+
+```bash
+cd ~/mistral-ai-hackathon-stef
+
+# Standalone mode (no 5090 / OpenClaw needed):
+python scripts/06_openclaw_bridge.py --standalone --reachy-ip 192.168.1.42
+
+# With memory service (optional — run in a separate terminal):
+python scripts/05_memory_manager.py --serve --port 8100 &
+python scripts/06_openclaw_bridge.py --standalone --reachy-ip 192.168.1.42 --memory-url http://localhost:8100
+
+# With OpenClaw Gateway (if running on 5090):
+python scripts/06_openclaw_bridge.py --gateway-host 192.168.1.XX --reachy-ip 192.168.1.42
+```
+
+### Pull Updates Later
+
+When you push new code from your Mac or 5090:
+
+```bash
+cd ~/mistral-ai-hackathon-stef
+git pull origin main
 ```
 
 ### Test the Bridge
