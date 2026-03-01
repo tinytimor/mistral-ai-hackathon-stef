@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-02_sft_qlora.py — Supervised Fine-Tuning with QLoRA on Ministral 3B
+02_sft_qlora.py - Supervised Fine-Tuning with QLoRA on Ministral 3B
 for tool-calling + think-plan-act-reflect behavior.
 
 Runs on RTX 5090 (32GB VRAM).
@@ -39,7 +39,7 @@ BASE_MODEL = os.getenv("BASE_MODEL", "mistralai/Ministral-3-8B-Instruct-2512")
 # ─── QLoRA Configuration (4-bit quantization for memory efficiency) ──────────
 QLORA_CONFIG = BitsAndBytesConfig(
     load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",           # NormalFloat4 — best for LLM weights
+    bnb_4bit_quant_type="nf4",           # NormalFloat4 - best for LLM weights
     bnb_4bit_compute_dtype=torch.bfloat16,  # Compute in bf16 for RTX 5090
     bnb_4bit_use_double_quant=True,       # Double quantization saves ~0.4 bits/param
 )
@@ -47,8 +47,8 @@ QLORA_CONFIG = BitsAndBytesConfig(
 # ─── LoRA Configuration ──────────────────────────────────────────────────────
 LORA_CONFIG = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
-    r=32,                                 # Rank — higher = more capacity, more VRAM
-    lora_alpha=64,                        # Alpha — scaling factor (usually 2x r)
+    r=32,                                 # Rank - higher = more capacity, more VRAM
+    lora_alpha=64,                        # Alpha - scaling factor (usually 2x r)
     lora_dropout=0.05,                    # Small dropout for regularization
     target_modules=[                      # Target all attention + MLP projections
         "q_proj", "k_proj", "v_proj", "o_proj",
@@ -147,7 +147,7 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("🔧 SFT with QLoRA — Ministral Tool-Calling Fine-Tune")
+    print("🔧 SFT with QLoRA - Ministral Tool-Calling Fine-Tune")
     print("=" * 60)
 
     # ─── Check GPU ────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ def main():
             )
             print(f"   📊 W&B run: {wandb.run.url}")
         except Exception as e:
-            print(f"   ⚠️  W&B init failed ({e}) — continuing without logging")
+            print(f"   ⚠️  W&B init failed ({e}) - continuing without logging")
             use_wandb = False
     else:
         print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
@@ -213,7 +213,7 @@ def main():
     else:
         dataset = full_dataset
         eval_dataset = None
-        print("   ⚠️  Dataset too small for eval split — skipping best-model selection")
+        print("   ⚠️  Dataset too small for eval split - skipping best-model selection")
 
     # Show a sample
     if len(dataset) > 0:
@@ -224,20 +224,20 @@ def main():
     print(f"\n🧠 Loading {args.base_model} with 4-bit QLoRA...")
 
     # Ministral 3 (Dec 2025) uses Mistral3ForConditionalGeneration (multimodal wrapper)
-    # which AutoModelForCausalLM doesn't support — load explicitly
+    # which AutoModelForCausalLM doesn't support - load explicitly
     from transformers import AutoConfig
     config = AutoConfig.from_pretrained(args.base_model, trust_remote_code=True)
     model_type = getattr(config, "model_type", "")
 
     if model_type == "mistral3":
         from transformers import Mistral3ForConditionalGeneration
-        print(f"   📎 Detected Mistral3 multimodal architecture — loading with Mistral3ForConditionalGeneration")
+        print(f"   📎 Detected Mistral3 multimodal architecture - loading with Mistral3ForConditionalGeneration")
 
-        # Check if model is already quantized (e.g., FP8) — can't stack BnB on top
+        # Check if model is already quantized (e.g., FP8) - can't stack BnB on top
         existing_quant = getattr(config, "quantization_config", None)
         if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
             quant_method = existing_quant["quant_method"]
-            print(f"   📎 Model is {quant_method}-quantized — dequantizing to BF16 for training")
+            print(f"   📎 Model is {quant_method}-quantized - dequantizing to BF16 for training")
             from transformers import FineGrainedFP8Config
             # Dequantize FP8 → BF16 (produces a clean, trainable model ~6.8GB)
             # With LoRA + gradient checkpointing + reduced batch, this fits on 32GB GPU

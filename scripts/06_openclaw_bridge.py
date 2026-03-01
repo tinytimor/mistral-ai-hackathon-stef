@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-06_openclaw_bridge.py — OpenClaw ↔ Reachy Mini edge bridge with memory integration.
+06_openclaw_bridge.py - OpenClaw ↔ Reachy Mini edge bridge with memory integration.
 
 This script runs on the Orin Nano and connects:
   1. OpenClaw Gateway (running on 5090 or locally) via WebSocket/HTTP
@@ -11,7 +11,7 @@ This script runs on the Orin Nano and connects:
 KEY DESIGN: Inference is fully 5090-independent.
   - The 5090 is used to TRAIN specialized models (SFT + GRPO)
   - Once deployed, the Orin Nano runs everything locally via Ollama
-  - OpenClaw Gateway is OPTIONAL — for cloud escalation only
+  - OpenClaw Gateway is OPTIONAL - for cloud escalation only
   - All robot tools execute locally on the Orin, no cloud needed
 
 What we add beyond clawd-reachy-mini:
@@ -34,7 +34,7 @@ What we take from VisionClaw:
   - Session key + conversation history for multi-turn tool calling
 
 Usage:
-    # Standalone (Orin Nano, local model only — NO 5090 needed):
+    # Standalone (Orin Nano, local model only - NO 5090 needed):
     python scripts/06_openclaw_bridge.py --standalone --reachy-ip 192.168.1.XX
 
     # With OpenClaw Gateway (optional cloud escalation):
@@ -139,7 +139,7 @@ class ReachyController:
                 print(f"⚠️ Could not connect to Reachy at {self.reachy_ip}")
                 self.reachy = None
         except ImportError:
-            print("⚠️ reachy2-sdk not installed — running in LLM-only mode")
+            print("⚠️ reachy2-sdk not installed - running in LLM-only mode")
             self.reachy = None
         except Exception as e:
             print(f"⚠️ Reachy connection error: {e}")

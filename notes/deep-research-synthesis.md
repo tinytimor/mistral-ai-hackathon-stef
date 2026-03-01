@@ -31,9 +31,9 @@ Stage 3: Quantize to Q4_K_M GGUF → deploy to Orin Nano
 Use **Mistral Large** (via Azure Foundry API or direct API) to generate high-quality training examples:
 
 **What to generate:**
-- **Tool-calling conversations** — Mistral Large already supports function calling natively. Generate 500-1000 conversations where the model uses tools (search, robot control, memory lookup, medication reminders).
-- **Agentic planning traces** — Multi-step task decomposition: "Remind patient about medication → check schedule → prepare reminder → speak through robot → log completion"
-- **System prompt + response pairs** — Teach the student model the "Reachy Copilot" persona.
+- **Tool-calling conversations** - Mistral Large already supports function calling natively. Generate 500-1000 conversations where the model uses tools (search, robot control, memory lookup, medication reminders).
+- **Agentic planning traces** - Multi-step task decomposition: "Remind patient about medication → check schedule → prepare reminder → speak through robot → log completion"
+- **System prompt + response pairs** - Teach the student model the "Reachy Copilot" persona.
 
 **Script for generating training data:**
 ```python
@@ -100,7 +100,7 @@ for scenario in SCENARIOS:
 
 ### Stage 2a: GKD (Generalized Knowledge Distillation)
 
-**Best for:** When you have both teacher and student models and want the student to learn the teacher's output distribution — not just imitate specific examples.
+**Best for:** When you have both teacher and student models and want the student to learn the teacher's output distribution - not just imitate specific examples.
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -294,7 +294,7 @@ python llama.cpp/convert_hf_to_gguf.py ./agent-ministral-3b-merged --outfile age
 ## 2. Making Small Models Agentic
 
 ### The Problem
-3B parameter models are typically not great at multi-step reasoning, tool selection, or long-horizon planning out of the box. But **Ministral 3B already supports function calling** — the Mistral docs list `ministral-3b-latest` as a function-calling capable model.
+3B parameter models are typically not great at multi-step reasoning, tool selection, or long-horizon planning out of the box. But **Ministral 3B already supports function calling** - the Mistral docs list `ministral-3b-latest` as a function-calling capable model.
 
 ### Key Techniques for Small-Model Agency
 
@@ -442,7 +442,7 @@ Mistral Large (teacher)  │  Generate 500-1000 agentic     │
 ### Qwen's GRPO Improvements (DAPO Loss)
 The DAPO paper from Qwen/ByteDance improves on standard GRPO by:
 - Token-level normalization (prevents length bias)
-- TRL defaults to `loss_type="dapo"` — you get this for free!
+- TRL defaults to `loss_type="dapo"` - you get this for free!
 
 ---
 
@@ -453,7 +453,7 @@ The DAPO paper from Qwen/ByteDance improves on standard GRPO by:
 Create an OpenClaw skill that wraps DuckDuckGo search:
 
 ```python
-# search_skill.py — OpenClaw-compatible tool
+# search_skill.py - OpenClaw-compatible tool
 from duckduckgo_search import DDGS
 
 def search_web(query: str, max_results: int = 5) -> str:
@@ -483,7 +483,7 @@ def search_news(query: str, timelimit: str = "w") -> str:
     return json.dumps(results, indent=2)
 ```
 
-**Install:** `pip install duckduckgo-search` (or `pip install ddgs` — package was renamed)
+**Install:** `pip install duckduckgo-search` (or `pip install ddgs` - package was renamed)
 
 ### Option B: Tavily Search (Better Quality, API Key Required)
 
@@ -510,7 +510,7 @@ skills:
 ```
 
 ### For the Hackathon: Go with DuckDuckGo
-- **Zero API key required** — one less thing to break
+- **Zero API key required** - one less thing to break
 - Works offline-ish (no paid API limits)
 - Fast, simple Python interface
 - Register it as a Mistral tool in the function-calling format
@@ -645,7 +645,7 @@ The key architectural insight from VisionClaw: declare a single `execute` tool t
 **What it does:**
 - Complete voice interface connecting Reachy Mini to OpenClaw over WebSocket
 - Modules: `main.py` (CLI), `interface.py` (conversation loop), `gateway.py` (OpenClaw protocol + WS), `audio.py` (utterance capture), `stt.py` (multiple STT backends)
-- **action-skill/** — An OpenClaw skill package with: connect/disconnect, head movement, antenna control, emotions, dance, image capture, robot speech
+- **action-skill/** - An OpenClaw skill package with: connect/disconnect, head movement, antenna control, emotions, dance, image capture, robot speech
 - Uses ElevenLabs TTS
 - CLI: `uv run clawd-reachy --gateway-host 127.0.0.1`
 
@@ -658,7 +658,7 @@ The key architectural insight from VisionClaw: declare a single `execute` tool t
 **How to credit:**
 ```markdown
 ## Acknowledgments
-- **clawd-reachy-mini** by [Artur Skowronski](https://github.com/ArturSkowronski) — 
+- **clawd-reachy-mini** by [Artur Skowronski](https://github.com/ArturSkowronski) - 
   Foundation for Reachy Mini + OpenClaw integration. We extended it with Mistral models,
   web search capabilities, and healthcare-specific skills.
 ```
@@ -679,7 +679,7 @@ The key architectural insight from VisionClaw: declare a single `execute` tool t
 
 **How to credit:**
 ```markdown
-- **VisionClaw** by [sseanliu](https://github.com/sseanliu) — 
+- **VisionClaw** by [sseanliu](https://github.com/sseanliu) - 
   Architectural inspiration for our multimodal-to-tool-call pipeline design.
 ```
 
@@ -852,6 +852,6 @@ print(f"✅ Model saved to {OUTPUT_DIR}")
 
 ## Summary: What to Tell the Judges
 
-> "We distilled Mistral Large's agentic capabilities into a 3-billion parameter model using HuggingFace TRL's GRPO trainer with custom tool-use reward functions. The student model learned to use web search, robot control, and healthcare tools through reinforcement learning with verifiable rewards — the same technique pioneered by DeepSeek-R1. The resulting model runs quantized (Q4) on a $249 NVIDIA Orin Nano, giving our Reachy Mini robot the intelligence of a large model at the edge."
+> "We distilled Mistral Large's agentic capabilities into a 3-billion parameter model using HuggingFace TRL's GRPO trainer with custom tool-use reward functions. The student model learned to use web search, robot control, and healthcare tools through reinforcement learning with verifiable rewards - the same technique pioneered by DeepSeek-R1. The resulting model runs quantized (Q4) on a $249 NVIDIA Orin Nano, giving our Reachy Mini robot the intelligence of a large model at the edge."
 
 This is the story that wins: **frontier-model intelligence, edge-device deployment, open-source tooling (TRL + OpenClaw), physical embodiment.**

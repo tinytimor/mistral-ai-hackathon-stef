@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-05_memory_manager.py — Three-tier memory system for Reachy Copilot edge deployment.
+05_memory_manager.py - Three-tier memory system for Reachy Copilot edge deployment.
 
 Manages:
   L1: Working memory (in-context, current turn)

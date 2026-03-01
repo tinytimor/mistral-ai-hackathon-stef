@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-03_grpo_agent.py — GRPO (Group Relative Policy Optimization) agent training
+03_grpo_agent.py - GRPO (Group Relative Policy Optimization) agent training
 to teach the model to think → plan → act → reflect with tool use.
 
 This uses TRL's GRPOTrainer with the built-in `tools` parameter for
@@ -231,7 +231,7 @@ def reward_tool_relevance(completions: list[list[dict]], prompts: list[str] = No
 
 
 def reward_response_quality(completions: list[list[dict]], **kwargs) -> list[float]:
-    """Reward for overall response quality — empathy, completeness, professionalism."""
+    """Reward for overall response quality - empathy, completeness, professionalism."""
     rewards = []
     for completion in completions:
         text = completion[-1].get("content", "") if isinstance(completion[-1], dict) else str(completion[-1])
@@ -335,7 +335,7 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("🎯 GRPO Agent Training — Tool-Calling Reinforcement Learning")
+    print("🎯 GRPO Agent Training - Tool-Calling Reinforcement Learning")
     print("=" * 60)
 
     if torch.cuda.is_available():
@@ -368,7 +368,7 @@ def main():
             )
             print(f"   📊 W&B run: {wandb.run.url}")
         except Exception as e:
-            print(f"   ⚠️  W&B init failed ({e}) — continuing without logging")
+            print(f"   ⚠️  W&B init failed ({e}) - continuing without logging")
             use_wandb = False
     else:
         print("   ⚠️  W&B disabled (set WANDB_API_KEY or remove --no-wandb)")
@@ -378,12 +378,12 @@ def main():
     is_lora_adapter = adapter_config_path.exists()
 
     if is_lora_adapter:
-        # SFT output is a LoRA adapter — need to load base model + merge
+        # SFT output is a LoRA adapter - need to load base model + merge
         import json as _json
         with open(adapter_config_path) as f:
             adapter_cfg = _json.load(f)
         base_model_id = adapter_cfg.get("base_model_name_or_path", "")
-        print(f"   📎 Detected LoRA adapter — base model: {base_model_id}")
+        print(f"   📎 Detected LoRA adapter - base model: {base_model_id}")
         model_to_load = base_model_id
     else:
         model_to_load = args.model
@@ -404,20 +404,20 @@ def main():
     )
 
     # Ministral 3 (Dec 2025) uses Mistral3ForConditionalGeneration (multimodal wrapper)
-    # which AutoModelForCausalLM doesn't support — load explicitly
+    # which AutoModelForCausalLM doesn't support - load explicitly
     from transformers import AutoConfig
     model_config = AutoConfig.from_pretrained(model_to_load, trust_remote_code=True)
     detected_model_type = getattr(model_config, "model_type", "")
 
     if detected_model_type == "mistral3":
         from transformers import Mistral3ForConditionalGeneration
-        print(f"   📎 Detected Mistral3 multimodal architecture — loading with Mistral3ForConditionalGeneration")
+        print(f"   📎 Detected Mistral3 multimodal architecture - loading with Mistral3ForConditionalGeneration")
 
-        # Check if model is already quantized (e.g., FP8) — can't stack BnB on top
+        # Check if model is already quantized (e.g., FP8) - can't stack BnB on top
         existing_quant = getattr(model_config, "quantization_config", None)
         if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
             quant_method = existing_quant["quant_method"]
-            print(f"   📎 Model is {quant_method}-quantized — dequantizing to BF16 for training")
+            print(f"   📎 Model is {quant_method}-quantized - dequantizing to BF16 for training")
             from transformers import FineGrainedFP8Config
             model = Mistral3ForConditionalGeneration.from_pretrained(
                 model_to_load,
@@ -492,7 +492,7 @@ def main():
         report_to="wandb" if use_wandb else "none",
         seed=42,
         # GRPO-specific
-        loss_type="dapo",                        # DAPO loss — no length bias
+        loss_type="dapo",                        # DAPO loss - no length bias
     )
 
     # ─── Create trainer with reward functions ────────────────────────────

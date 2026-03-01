@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════════════
-# 🚀 run_experiments.sh — Automated Training Pipeline for RTX 5090 (32GB VRAM)
+# 🚀 run_experiments.sh - Automated Training Pipeline for RTX 5090 (32GB VRAM)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # Runs the full data generation → SFT → GRPO → Quantize pipeline with
@@ -19,11 +19,11 @@
 #   nohup ./run_experiments.sh > pipeline_stdout.log 2>&1 &
 #   disown
 #   # Check later: tail -f logs/pipeline_*.log
-#   # Or check W&B dashboard — you'll get an alert when it finishes
+#   # Or check W&B dashboard - you'll get an alert when it finishes
 #
 # Hardware requirements:
-#   - RTX 5090 (32GB VRAM) — Blackwell architecture (sm_100, CUDA 12.8+)
-#   - OR Orin Nano Super (8GB) — JetPack 6.2 (sm_87, CUDA 12.6)
+#   - RTX 5090 (32GB VRAM) - Blackwell architecture (sm_100, CUDA 12.8+)
+#   - OR Orin Nano Super (8GB) - JetPack 6.2 (sm_87, CUDA 12.6)
 #
 # Timeline: ~2-3 hours unattended on RTX 5090
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -121,7 +121,7 @@ notify_completion() {
     local message="$2"
     local elapsed=$(( ($(date +%s) - PIPELINE_START_EPOCH) / 60 ))
 
-    # W&B alert (visible on phone/laptop) — skip in offline mode
+    # W&B alert (visible on phone/laptop) - skip in offline mode
     if [ "${WANDB_MODE:-}" != "offline" ]; then
         timeout 30 python3 -c "
 import wandb
@@ -138,13 +138,13 @@ except Exception as e:
     print(f'W&B alert failed: {e}')
 " 2>/dev/null || true
     else
-        log_info "W&B offline mode — skipping alert notification"
+        log_info "W&B offline mode - skipping alert notification"
     fi
 
     log_info "Pipeline $status after ${elapsed} minutes"
 }
 
-# Trap for unexpected exits — get notified even if something crashes
+# Trap for unexpected exits - get notified even if something crashes
 trap 'notify_completion "FAILED" "Pipeline crashed at $(date). Check $PIPELINE_LOG"' ERR
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -192,19 +192,19 @@ print(f'   Compute capability: sm_{arch[0]}{arch[1]}')
 # Verify architecture compatibility
 major, minor = arch
 if major >= 10:
-    print(f'   ✅ Blackwell architecture (sm_{major}{minor}) — RTX 5090 supported')
+    print(f'   ✅ Blackwell architecture (sm_{major}{minor}) - RTX 5090 supported')
 elif major == 8 and minor == 7:
-    print(f'   ✅ Orin Nano (sm_87) — JetPack 6.x supported')
+    print(f'   ✅ Orin Nano (sm_87) - JetPack 6.x supported')
 elif major >= 8:
-    print(f'   ✅ Ampere/Ada/Hopper architecture — supported')
+    print(f'   ✅ Ampere/Ada/Hopper architecture - supported')
 else:
-    print(f'   ⚠️  Older GPU architecture — may have compatibility issues')
+    print(f'   ⚠️  Older GPU architecture - may have compatibility issues')
 
 # Check bf16 support (RTX 5090 Blackwell supports bf16)
 if torch.cuda.is_bf16_supported():
-    print('   ✅ BF16 supported — optimal for training')
+    print('   ✅ BF16 supported - optimal for training')
 else:
-    print('   ⚠️  BF16 not supported — will use FP16')
+    print('   ⚠️  BF16 not supported - will use FP16')
 " || { log_error "GPU check failed"; exit 1; }
 
 # Check required packages
@@ -241,14 +241,14 @@ else:
 # Check W&B
 if [ -n "${WANDB_API_KEY:-}" ]; then
     if [ "${WANDB_MODE:-}" = "offline" ]; then
-        log_success "W&B configured in OFFLINE mode — logs saved locally, sync later with: wandb sync wandb/latest-run"
+        log_success "W&B configured in OFFLINE mode - logs saved locally, sync later with: wandb sync wandb/latest-run"
     else
-        log_success "W&B API key configured — experiments will be tracked online"
+        log_success "W&B API key configured - experiments will be tracked online"
         timeout 15 python3 -c "import wandb; wandb.login(key='${WANDB_API_KEY}', relogin=True)" 2>/dev/null || \
-            log_warn "W&B login timed out — continuing anyway (offline logs will still work)"
+            log_warn "W&B login timed out - continuing anyway (offline logs will still work)"
     fi
 else
-    log_warn "WANDB_API_KEY not set — experiments will NOT be tracked"
+    log_warn "WANDB_API_KEY not set - experiments will NOT be tracked"
 fi
 
 # Check HuggingFace token
@@ -256,7 +256,7 @@ if [ -n "${HF_TOKEN:-}" ]; then
     log_success "HuggingFace token configured"
     export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 else
-    log_warn "HF_TOKEN not set — may not be able to download gated models"
+    log_warn "HF_TOKEN not set - may not be able to download gated models"
 fi
 
 log_success "Environment verification complete!"
@@ -275,8 +275,8 @@ log_step "PHASE 0.5: Model Download & Cache Check"
 if [ "$NO_TRAIN" = true ]; then
     # ─── NO-TRAIN MODE ────────────────────────────────────────────────────
     # Download pre-quantized GGUFs and deploy directly.
-    # No 5090 GPU needed for this path — models run on Orin Nano (8GB).
-    log_info "🚀 NO-TRAIN MODE — Downloading pre-quantized GGUFs for edge deployment"
+    # No 5090 GPU needed for this path - models run on Orin Nano (8GB).
+    log_info "🚀 NO-TRAIN MODE - Downloading pre-quantized GGUFs for edge deployment"
     log_info "   No fine-tuning. Using off-the-shelf Ministral 3B GGUF."
     log_info "   Value prop: works today, fine-tuned model is an upgrade later."
 
@@ -316,7 +316,7 @@ if [ "$NO_TRAIN" = true ]; then
     ORIN_USER="${ORIN_USER:-orin}"
 
     if ping -c 1 -W 2 "$ORIN_IP" &>/dev/null; then
-        log_info "Orin Nano reachable at $ORIN_IP — deploying..."
+        log_info "Orin Nano reachable at $ORIN_IP - deploying..."
         ssh "$ORIN_USER@$ORIN_IP" "mkdir -p ~/reachy-model" 2>/dev/null || true
         scp "$GGUF_FILE" "$ORIN_USER@$ORIN_IP:~/reachy-model/" 2>&1 || log_warn "SCP failed"
         [ -f "$MODELFILE" ] && scp "$MODELFILE" "$ORIN_USER@$ORIN_IP:~/reachy-model/" 2>&1 || true
@@ -332,7 +332,7 @@ if [ "$NO_TRAIN" = true ]; then
 
         # Create Ollama models on Orin
         ssh "$ORIN_USER@$ORIN_IP" "cd ~/reachy-model && ollama create reachy-copilot -f Modelfile" 2>&1 || \
-            log_warn "Ollama model creation failed — do it manually on the Orin"
+            log_warn "Ollama model creation failed - do it manually on the Orin"
 
         # Copy bridge + memory scripts
         ssh "$ORIN_USER@$ORIN_IP" "mkdir -p ~/reachy-bridge" 2>/dev/null || true
@@ -374,7 +374,7 @@ fi
 
 if [ "$DEPLOY_ONLY" = true ]; then
     # ─── DEPLOY-ONLY MODE ─────────────────────────────────────────────────
-    log_info "🚀 DEPLOY-ONLY MODE — Looking for existing trained models..."
+    log_info "🚀 DEPLOY-ONLY MODE - Looking for existing trained models..."
 
     BEST_GGUF=$(find "$MODEL_DIR" -name "model-q4_k_m.gguf" -o -name "*Q4_K_M.gguf" 2>/dev/null | head -1)
     if [ -z "$BEST_GGUF" ]; then
@@ -450,7 +450,7 @@ if [ "$SKIP_DATA" = false ]; then
         SAMPLE_COUNT=$(wc -l < "$TRAINING_DATA" | tr -d ' ')
         log_success "Generated $SAMPLE_COUNT training samples → $TRAINING_DATA"
     else
-        log_error "Data generation failed — no output file created"
+        log_error "Data generation failed - no output file created"
         log_warn "⏭️  SFT and GRPO phases will be skipped (no training data)"
         PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
         TRAINING_DATA=""
@@ -465,7 +465,7 @@ if [ "$SKIP_DATA" = false ]; then
             --num-samples "$NUM_SAMPLES" \
             --include-hf \
             2>&1 | tee "$LOG_DIR/data_gen_hf_${TIMESTAMP}.log" || {
-            log_warn "HuggingFace augmentation failed — continuing with direct data only"
+            log_warn "HuggingFace augmentation failed - continuing with direct data only"
             AUGMENTED_DATA="$TRAINING_DATA"
         }
         if [ -f "$AUGMENTED_DATA" ]; then
@@ -496,7 +496,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 2: SFT Hyperparameter Sweep
 # ═══════════════════════════════════════════════════════════════════════════════
-log_step "PHASE 2: SFT with QLoRA — Hyperparameter Sweep"
+log_step "PHASE 2: SFT with QLoRA - Hyperparameter Sweep"
 
 # Initialize results tracker
 echo '{"experiments": [], "best_sft": null, "best_grpo": null}' > "$RESULTS_FILE"
@@ -523,7 +523,7 @@ EXP_NUM=0
 
 # Skip SFT if no training data available
 if [ -z "${TRAINING_DATA:-}" ] || [ ! -f "${TRAINING_DATA:-/nonexistent}" ]; then
-    log_warn "⏭️  Skipping all SFT experiments — no training data available"
+    log_warn "⏭️  Skipping all SFT experiments - no training data available"
     PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     SFT_EXPERIMENTS=()
 fi
@@ -597,7 +597,7 @@ except: print('none')
             BEST_SFT_LOSS="$CANDIDATE_LOSS"
         fi
     else
-        log_warn "SFT experiment $RUN_NAME failed — continuing with next..."
+        log_warn "SFT experiment $RUN_NAME failed - continuing with next..."
         PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     fi
 done
@@ -613,7 +613,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 3: GRPO Reinforcement Learning Sweep
 # ═══════════════════════════════════════════════════════════════════════════════
-log_step "PHASE 3: GRPO Agent Training — RL Sweep"
+log_step "PHASE 3: GRPO Agent Training - RL Sweep"
 
 # Use the best SFT model (or the default r32 one)
 # Prefer r32 as it's a good balance
@@ -641,7 +641,7 @@ EXP_NUM=0
 
 # Skip GRPO if no valid base model available
 if [ -z "${GRPO_BASE:-}" ] || [ ! -d "${GRPO_BASE:-/nonexistent}" ]; then
-    log_warn "⏭️  Skipping all GRPO experiments — no valid SFT base model"
+    log_warn "⏭️  Skipping all GRPO experiments - no valid SFT base model"
     PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     GRPO_EXPERIMENTS=()
 fi
@@ -663,7 +663,7 @@ for exp in "${GRPO_EXPERIMENTS[@]}"; do
         --batch-size 2 \
         --wandb-run-name "$RUN_NAME" \
         2>&1 | tee "$LOG_DIR/${RUN_NAME}_${TIMESTAMP}.log" || {
-        log_warn "GRPO experiment $RUN_NAME crashed — continuing with next..."
+        log_warn "GRPO experiment $RUN_NAME crashed - continuing with next..."
         PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     }
 
@@ -700,7 +700,7 @@ except: print('none')
             BEST_GRPO_REWARD="$CANDIDATE_REWARD"
         fi
     else
-        log_error "GRPO experiment $RUN_NAME failed — continuing..."
+        log_error "GRPO experiment $RUN_NAME failed - continuing..."
     fi
 done
 
@@ -721,12 +721,12 @@ if [ ! -d "$LLAMA_CPP_PATH" ]; then
         if cmake -B build -DGGML_CUDA=ON && cmake --build build --config Release -j$(nproc); then
             log_success "llama.cpp built successfully"
         else
-            log_warn "llama.cpp build failed — quantization may not work"
+            log_warn "llama.cpp build failed - quantization may not work"
             PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
         fi
         cd "$SCRIPT_DIR"
     else
-        log_warn "Failed to clone llama.cpp — quantization will be skipped"
+        log_warn "Failed to clone llama.cpp - quantization will be skipped"
         PIPELINE_FAILURES=$((PIPELINE_FAILURES + 1))
     fi
 fi
@@ -744,7 +744,7 @@ for QUANT in "${QUANT_TYPES[@]}"; do
             --llama-cpp "$LLAMA_CPP_PATH" \
             --quant "$QUANT" \
             2>&1 | tee "$LOG_DIR/quantize_sft_${QUANT}_${TIMESTAMP}.log" || {
-            log_warn "SFT quantization ($QUANT) failed — continuing..."
+            log_warn "SFT quantization ($QUANT) failed - continuing..."
         }
     fi
 
@@ -757,7 +757,7 @@ for QUANT in "${QUANT_TYPES[@]}"; do
             --llama-cpp "$LLAMA_CPP_PATH" \
             --quant "$QUANT" \
             2>&1 | tee "$LOG_DIR/quantize_grpo_${QUANT}_${TIMESTAMP}.log" || {
-            log_warn "GRPO quantization ($QUANT) failed — continuing..."
+            log_warn "GRPO quantization ($QUANT) failed - continuing..."
         }
     fi
 
@@ -800,17 +800,17 @@ if [ -n "$DEPLOY_BEST" ]; then
 
     # Try to deploy to Orin if reachable
     if ping -c 1 -W 2 "$ORIN_IP" &>/dev/null; then
-        log_info "Orin Nano reachable at $ORIN_IP — deploying model..."
+        log_info "Orin Nano reachable at $ORIN_IP - deploying model..."
 
         # Copy model files
         ssh "$ORIN_USER@$ORIN_IP" "mkdir -p ~/reachy-model" 2>/dev/null || true
         scp -r "$DEPLOY_BEST"/* "$ORIN_USER@$ORIN_IP:~/reachy-model/" 2>&1 || {
-            log_warn "SCP to Orin failed — model saved locally at $DEPLOY_BEST"
+            log_warn "SCP to Orin failed - model saved locally at $DEPLOY_BEST"
         }
 
         # Create Ollama model on Orin
         ssh "$ORIN_USER@$ORIN_IP" "cd ~/reachy-model && ollama create reachy-copilot -f Modelfile" 2>&1 || {
-            log_warn "Ollama model creation on Orin failed — do it manually"
+            log_warn "Ollama model creation on Orin failed - do it manually"
         }
 
         # Copy bridge + memory scripts to Orin
@@ -820,7 +820,7 @@ if [ -n "$DEPLOY_BEST" ]; then
 
         log_success "Model deployed to Orin Nano!"
     else
-        log_warn "Orin Nano not reachable at $ORIN_IP — skipping auto-deploy"
+        log_warn "Orin Nano not reachable at $ORIN_IP - skipping auto-deploy"
         log_info "Deploy manually later:"
         log_info "  scp -r $DEPLOY_BEST/* $ORIN_USER@$ORIN_IP:~/reachy-model/"
     fi
@@ -834,13 +834,13 @@ fi
 log_step "PHASE 6: Memory Manager Self-Test"
 
 python3 scripts/05_memory_manager.py --test 2>&1 || {
-    log_warn "Memory manager test failed — check scripts/05_memory_manager.py"
+    log_warn "Memory manager test failed - check scripts/05_memory_manager.py"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PHASE 7: Summary & Next Steps
 # ═══════════════════════════════════════════════════════════════════════════════
-log_step "PHASE 7: Pipeline Complete — Summary"
+log_step "PHASE 7: Pipeline Complete - Summary"
 
 PIPELINE_END=$(date +%s)
 PIPELINE_DURATION=$(( (PIPELINE_END - PIPELINE_START_EPOCH) / 60 ))

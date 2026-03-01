@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-00_quickstart.py — Test your Mistral API connection and verify everything works.
+00_quickstart.py - Test your Mistral API connection and verify everything works.
 
 Run this FIRST before generating training data!
 
@@ -40,7 +40,7 @@ def test_connection(provider: str):
     """Test the API connection and run a simple tool-calling example."""
 
     print(f"\n{'='*70}")
-    print(f"  🚀 Reachy Copilot — Quickstart Test")
+    print(f"  🚀 Reachy Copilot - Quickstart Test")
     print(f"  Provider: {provider}")
     print(f"{'='*70}\n")
 

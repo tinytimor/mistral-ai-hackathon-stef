@@ -1,6 +1,6 @@
 # 🖥️ Remote Access: Mac → Orin Nano (VNC + SSH)
 
-> Connect to your Orin Nano from your MacBook — view the GUI, run commands,
+> Connect to your Orin Nano from your MacBook - view the GUI, run commands,
 > and monitor experiments from the train to NYC.
 
 ---
@@ -60,7 +60,7 @@ ssh orin
 ### SSH Key Setup (passwordless)
 
 ```bash
-# On Mac — generate key if you don't have one:
+# On Mac - generate key if you don't have one:
 ssh-keygen -t ed25519 -C "mac-to-orin"
 
 # Copy key to Orin:
@@ -148,7 +148,7 @@ sudo systemctl enable x11vnc
 sudo systemctl start x11vnc
 ```
 
-### On Your Mac — Connect with VNC Viewer
+### On Your Mac - Connect with VNC Viewer
 
 **Built-in macOS Screen Sharing:**
 ```bash
@@ -210,7 +210,7 @@ sudo systemctl status vncserver@1
 ## 3. Tailscale (Remote Access from Train / NYC)
 
 Tailscale creates a secure WireGuard VPN mesh so you can access the Orin
-from anywhere — even on cellular from the train.
+from anywhere - even on cellular from the train.
 
 ### On the Orin Nano
 
@@ -334,7 +334,7 @@ Save this on your Mac and run it to establish all connections:
 
 ```bash
 #!/bin/bash
-# connect-to-orin.sh — Run on Mac to connect to Orin Nano
+# connect-to-orin.sh - Run on Mac to connect to Orin Nano
 
 ORIN_IP="${ORIN_IP:-192.168.1.100}"  # or Tailscale IP
 

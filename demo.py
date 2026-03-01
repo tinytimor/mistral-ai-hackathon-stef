@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reachy Copilot — Embodied AI Assistant Demo.
+"""Reachy Copilot - Embodied AI Assistant Demo.
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                    WHAT RUNS WHERE                               │
@@ -137,7 +137,7 @@ def transcribe_audio(wav_path: str) -> str:
         if text:
             log_api(f"Heard: \"{text}\"")
         else:
-            log_api("(silence — no speech detected)")
+            log_api("(silence - no speech detected)")
         return text
     except Exception as e:
         print(f"  ❌ ASR error: {e}")
@@ -343,7 +343,7 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
-# ── LLM (Ollama — LOCAL) ──────────────────────────────────────────────────────
+# ── LLM (Ollama - LOCAL) ──────────────────────────────────────────────────────
 def ask_model(text: str) -> str:
     """Send text to reachy-copilot via Ollama (LOCAL on Orin Nano)."""
     conversation_history.append({"role": "user", "content": text})
@@ -353,7 +353,7 @@ def ask_model(text: str) -> str:
     system_context = (
         f"Current date and time: {now.strftime('%A, %B %d, %Y at %I:%M %p')}. "
         "When searching the web, include today's date for current results. "
-        "Give concise spoken answers — no markdown, no bullet points."
+        "Give concise spoken answers - no markdown, no bullet points."
     )
 
     log_local("Thinking with Ministral 3B (Ollama)...")
@@ -534,7 +534,7 @@ def execute_tool(reachy: ReachyMini, name: str, args: dict) -> str | None:
         return "I couldn't capture an image right now."
 
     else:
-        print(f"  ⚙️  {name}({args})  [not implemented — would go via OpenClaw]")
+        print(f"  ⚙️  {name}({args})  [not implemented - would go via OpenClaw]")
 
     return None
 
@@ -555,7 +555,7 @@ def main() -> None:
 
     now = datetime.now()
     print("=" * 62)
-    print("  🤖 REACHY COPILOT — Mistral AI Hackathon 2026")
+    print("  🤖 REACHY COPILOT - Mistral AI Hackathon 2026")
     print(f"  📅 {now.strftime('%A, %B %d, %Y at %I:%M %p')}")
     print("=" * 62)
     print()
@@ -581,10 +581,10 @@ def main() -> None:
     reachy.look_at_world(0.5, 0.0, 0.0)
 
     if voice_mode:
-        print("🎤 VOICE MODE — Speak to Reachy! Say 'quit' or 'stop' to exit.")
+        print("🎤 VOICE MODE - Speak to Reachy! Say 'quit' or 'stop' to exit.")
         print(f"   Recording {MIC_RECORD_SECONDS}s per turn (set MIC_SECONDS env to change)\n")
     else:
-        print("⌨️  TEXT MODE — Type to chat. Commands:")
+        print("⌨️  TEXT MODE - Type to chat. Commands:")
         print("   'see' / 'what do you see?' → camera + vision")
         print("   'voice' → switch to voice mode for one turn")
         print("   'quit' → exit\n")

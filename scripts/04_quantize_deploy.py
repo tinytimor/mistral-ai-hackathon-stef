@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-04_quantize_deploy.py — Merge LoRA adapters, convert to GGUF, quantize to Q4_K_M,
+04_quantize_deploy.py - Merge LoRA adapters, convert to GGUF, quantize to Q4_K_M,
 and deploy to Orin Nano via Ollama.
 
 Runs on RTX 5090 for merging/conversion, then deploys to Orin Nano.
@@ -34,7 +34,7 @@ def merge_lora(model_path: str, output_path: str):
     """Merge LoRA adapters back into the base model."""
     print("🔀 Merging LoRA adapters into base model...")
 
-    # Find base model — check adapter_config.json first, then training_info.json
+    # Find base model - check adapter_config.json first, then training_info.json
     adapter_cfg_path = Path(model_path) / "adapter_config.json"
     info_path = Path(model_path) / "training_info.json"
     base_model = None
@@ -67,7 +67,7 @@ def merge_lora(model_path: str, output_path: str):
         existing_quant = getattr(config, "quantization_config", None)
         if existing_quant and isinstance(existing_quant, dict) and existing_quant.get("quant_method"):
             from transformers import FineGrainedFP8Config
-            print(f"   📎 Base model is FP8 — dequantizing to BF16 for merge...")
+            print(f"   📎 Base model is FP8 - dequantizing to BF16 for merge...")
             model = Mistral3ForConditionalGeneration.from_pretrained(
                 base_model,
                 torch_dtype=torch.bfloat16,
@@ -227,7 +227,7 @@ def create_ollama_modelfile(gguf_path: str, output_path: str):
     """Create an Ollama Modelfile for easy deployment."""
     print("\n📝 Creating Ollama Modelfile...")
 
-    modelfile_content = f"""# Reachy Copilot — Ministral fine-tuned for embodied AI
+    modelfile_content = f"""# Reachy Copilot - Ministral fine-tuned for embodied AI
 FROM {gguf_path}
 
 # System prompt baked into the model
@@ -275,7 +275,7 @@ def print_deployment_instructions(output_path: str, quant_type: str):
     """Print step-by-step deployment instructions for Orin Nano."""
     gguf_name = f"model-{quant_type.lower()}.gguf"
     print("\n" + "=" * 60)
-    print("🚀 DEPLOYMENT INSTRUCTIONS — Orin Nano")
+    print("🚀 DEPLOYMENT INSTRUCTIONS - Orin Nano")
     print("=" * 60)
     print(f"""
 Your quantized model is ready at:
@@ -363,7 +363,7 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("📦 Quantize & Deploy — Ministral → Orin Nano")
+    print("📦 Quantize & Deploy - Ministral → Orin Nano")
     print("=" * 60)
 
     if args.gguf_path:

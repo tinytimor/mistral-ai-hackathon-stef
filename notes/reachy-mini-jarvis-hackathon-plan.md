@@ -1,6 +1,6 @@
-# 🦞🤖 Reachy Mini + OpenClaw + Orin Nano — Personal Jarvis Hackathon Plan
+# 🦞🤖 Reachy Mini + OpenClaw + Orin Nano - Personal Jarvis Hackathon Plan
 
-**Mistral Hackathon Project — Feasibility & Architecture Guide**
+**Mistral Hackathon Project - Feasibility & Architecture Guide**
 **Date:** February 28, 2026
 
 ---
@@ -18,7 +18,7 @@
 - [Fine-Tuning & Distillation Strategy](#fine-tuning--distillation-strategy)
 - [Azure Microsoft Foundry Budget](#azure-microsoft-foundry-budget)
 - [Feasibility Summary](#feasibility-summary)
-- [Getting Started — Step by Step](#getting-started--step-by-step)
+- [Getting Started - Step by Step](#getting-started--step-by-step)
 
 ---
 
@@ -28,11 +28,11 @@ Build a **personal Jarvis assistant** that:
 
 1. Runs on a **Jetson Orin Nano Super** connected to a **Reachy Mini** robot
 2. Uses **Mistral models** locally (Ministral 3B / Mistral 7B quantized)
-3. Is orchestrated by **OpenClaw** — an open-source personal AI assistant gateway
+3. Is orchestrated by **OpenClaw** - an open-source personal AI assistant gateway
 4. Leverages a **5090 GPU** for fine-tuning/distillation of agentic tool-use behavior
 5. Uses **Azure Microsoft Foundry** ($150/mo credits) for teacher models, evaluation, and fallback
 
-**Hackathon Narrative:** Demonstrating the full Mistral model family — frontier (Mistral Large as teacher) → distillation → edge deployment (Ministral 3B on a $249 Jetson) — powering a physical robot assistant orchestrated by OpenClaw.
+**Hackathon Narrative:** Demonstrating the full Mistral model family - frontier (Mistral Large as teacher) → distillation → edge deployment (Ministral 3B on a $249 Jetson) - powering a physical robot assistant orchestrated by OpenClaw.
 
 ---
 
@@ -43,14 +43,14 @@ Build a **personal Jarvis assistant** that:
 | Component | Specs | Role |
 |---|---|---|
 | **Jetson Orin Nano Super** | 67 TOPS, 8GB unified RAM, 1024-core Ampere GPU, $249 | Edge inference (STT, LLM, TTS) + Reachy Mini brain |
-| **Reachy Mini** | Camera, 4 mics, 5W speaker, 6-DOF head, body rotation | Physical embodiment — the robot |
+| **Reachy Mini** | Camera, 4 mics, 5W speaker, 6-DOF head, body rotation | Physical embodiment - the robot |
 | **RTX 5090** | 32GB GDDR7 | Fine-tuning rig + OpenClaw gateway host + heavy model inference |
 
 ### Software
 
 | Component | Technology | Purpose |
 |---|---|---|
-| **Agentic Framework** | [OpenClaw](https://github.com/openclaw/openclaw) (TypeScript, Node.js ≥22) | Personal AI assistant gateway — sessions, memory, channels, skills |
+| **Agentic Framework** | [OpenClaw](https://github.com/openclaw/openclaw) (TypeScript, Node.js ≥22) | Personal AI assistant gateway - sessions, memory, channels, skills |
 | **Local LLM Inference** | llama.cpp / Ollama with CUDA | Run Mistral models on Orin Nano GPU |
 | **Speech-to-Text** | Whisper.cpp (tiny/base) | Real-time transcription on Orin |
 | **Text-to-Speech** | Piper TTS or Coqui TTS | Speech synthesis on Orin |
@@ -58,7 +58,7 @@ Build a **personal Jarvis assistant** that:
 | **Vision** | Pollen Vision (zero-shot detection) | Camera-based perception |
 | **Fine-tuning** | unsloth / axolotl (QLoRA) | Train LoRA adapters on 5090 |
 | **Quantization** | llama.cpp GGUF export | Convert fine-tuned model for edge deployment |
-| **Cloud Models** | Azure Microsoft Foundry — Mistral Large | Teacher model for distillation + fallback |
+| **Cloud Models** | Azure Microsoft Foundry - Mistral Large | Teacher model for distillation + fallback |
 
 ### Mistral Models by Deployment Target
 
@@ -104,8 +104,8 @@ Build a **personal Jarvis assistant** that:
 │  │    sensitive responses (head movement,    │   │
 │  │    emotion reactions, quick replies)      │   │
 │  ├───────────────────────────────────────────┤   │
-│  │  Whisper.cpp (tiny) — real-time STT      │   │
-│  │  Piper TTS — speech synthesis            │   │
+│  │  Whisper.cpp (tiny) - real-time STT      │   │
+│  │  Piper TTS - speech synthesis            │   │
 │  ├───────────────────────────────────────────┤   │
 │  │  Reachy Mini Bridge Service (Python)     │   │
 │  │  • Exposes robot actions as OpenClaw     │   │
@@ -155,14 +155,14 @@ Build a **personal Jarvis assistant** that:
 
 [OpenClaw](https://openclaw.ai) is an **open-source, self-hosted personal AI assistant** created by Peter Steinberger. **240k+ GitHub stars**, MIT licensed.
 
-**Note:** OpenClaw is NOT acquired by OpenAI — OpenAI is a financial sponsor of the project. It is independent and model-agnostic.
+**Note:** OpenClaw is NOT acquired by OpenAI - OpenAI is a financial sponsor of the project. It is independent and model-agnostic.
 
 ### Key Features
 
 | Feature | Details |
 |---|---|
 | **Multi-channel inbox** | WhatsApp, Telegram, Slack, Discord, Signal, iMessage, Microsoft Teams, Google Chat, Matrix, WebChat |
-| **Model-agnostic** | Anthropic, OpenAI, Mistral, local models — any provider |
+| **Model-agnostic** | Anthropic, OpenAI, Mistral, local models - any provider |
 | **Full system access** | Browser control (CDP), shell commands, file I/O, cron jobs, webhooks |
 | **Skills/plugins** | Extensible via ClawHub skill registry; the agent can even write its own skills |
 | **Voice** | Voice Wake + Talk Mode on macOS/iOS/Android (via ElevenLabs) |
@@ -254,11 +254,11 @@ Base URL: http://<orin-nano-ip>:8000
 
 ## Tools
 
-- POST /look_at — Move the robot's head. Body: {"x": float, "y": float, "z": float}
-- POST /express — Show an emotion. Body: {"emotion": "happy|confused|thinking|excited|sad"}
-- POST /speak — Say something through the robot's speaker. Body: {"text": "..."}
-- POST /see — Take a photo and describe what the robot sees. Returns {"description": "..."}
-- POST /dance — Play a dance animation. Body: {"name": "wave|nod|shake|celebrate"}
+- POST /look_at - Move the robot's head. Body: {"x": float, "y": float, "z": float}
+- POST /express - Show an emotion. Body: {"emotion": "happy|confused|thinking|excited|sad"}
+- POST /speak - Say something through the robot's speaker. Body: {"text": "..."}
+- POST /see - Take a photo and describe what the robot sees. Returns {"description": "..."}
+- POST /dance - Play a dance animation. Body: {"name": "wave|nod|shake|celebrate"}
 ```
 
 ---
@@ -308,7 +308,7 @@ User speaks → Reachy Mini Mics
 
 ### Existing Reference
 
-Pollen Robotics already has a conversation app for Reachy Mini at https://github.com/pollen-robotics/reachy_mini_conversation_app — adapt this to use your local Mistral model and wire it as an OpenClaw bridge.
+Pollen Robotics already has a conversation app for Reachy Mini at https://github.com/pollen-robotics/reachy_mini_conversation_app - adapt this to use your local Mistral model and wire it as an OpenClaw bridge.
 
 ---
 
@@ -320,7 +320,7 @@ Pollen Robotics already has a conversation app for Reachy Mini at https://github
 |---|---|---|
 | **OpenClaw tool-use format** | Model needs to call OpenClaw skills correctly (JSON tool calls) | Synthetic data from Mistral Large via Azure Foundry |
 | **Reachy Mini action selection** | When to move head, express emotions, look at user | Record real interaction sessions, annotate with correct actions |
-| **Conversational personality** | "Jarvis" style — concise, proactive, dry wit | Curated dialogue examples |
+| **Conversational personality** | "Jarvis" style - concise, proactive, dry wit | Curated dialogue examples |
 | **Multi-step planning** | "Check my calendar, then remind me via WhatsApp, and nod when done" | Chain-of-thought traces from Mistral Large |
 
 ### Distillation Pipeline
@@ -437,7 +437,7 @@ scp ./ministral-3b-jarvis-Q4_K_M.gguf orin-nano:~/models/
 
 ---
 
-## Getting Started — Step by Step
+## Getting Started - Step by Step
 
 ### Phase 1: Core Setup (Day 1)
 

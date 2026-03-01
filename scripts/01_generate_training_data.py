@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-01_generate_training_data.py — Generate tool-calling + agentic training data
+01_generate_training_data.py - Generate tool-calling + agentic training data
 using Mistral models via Microsoft Foundry, Mistral La Plateforme API, or locally.
 
 Three providers:
-    - Microsoft Foundry: Mistral-Large-3 (deployed — sold directly by Azure)
+    - Microsoft Foundry: Mistral-Large-3 (deployed - sold directly by Azure)
     - Mistral API:       All models incl. Voxtral, Magistral, Ministral 3
     - Local RTX 5090:    Open-source models via vLLM (Apache 2.0)
 
 Open-source models (Apache 2.0, Dec 2025):
-    - Ministral 3 3B/8B/14B (v25.12) — vision + agentic, 256k ctx, edge-optimized
-    - Mistral Small 3.2 (v25.06) — 24B, vision, function calling
-    - Devstral 2 (v25.12) — code agent specialist
-    - Magistral Small 1.2 (v25.09) — reasoning model (OPEN)
-    - Voxtral Mini 4B Realtime — streaming ASR, Apache 2.0
+    - Ministral 3 3B/8B/14B (v25.12) - vision + agentic, 256k ctx, edge-optimized
+    - Mistral Small 3.2 (v25.06) - 24B, vision, function calling
+    - Devstral 2 (v25.12) - code agent specialist
+    - Magistral Small 1.2 (v25.09) - reasoning model (OPEN)
+    - Voxtral Mini 4B Realtime - streaming ASR, Apache 2.0
 
 Distillation strategy:
     Teacher (Mistral-Large-3 via Foundry) → generates high-quality training data
@@ -54,9 +54,9 @@ from openai import OpenAI, AzureOpenAI
 
 # ─── Provider config ──────────────────────────────────────────────────────────
 # Supports three providers:
-#   1. "foundry" — Microsoft Foundry (Mistral-Large-3 only — sold directly by Azure)
-#   2. "mistral" — Mistral La Plateforme API (all models incl. Voxtral, no marketplace needed)
-#   3. "local"   — Open-source models on RTX 5090 (32GB) via local inference server
+#   1. "foundry" - Microsoft Foundry (Mistral-Large-3 only - sold directly by Azure)
+#   2. "mistral" - Mistral La Plateforme API (all models incl. Voxtral, no marketplace needed)
+#   3. "local"   - Open-source models on RTX 5090 (32GB) via local inference server
 #
 # NOTE: Foundry partner models (Ministral-3B, Mistral-small-2503, etc.) require
 # Azure Marketplace subscription. Use "mistral" provider or "local" instead.
@@ -74,7 +74,7 @@ if not FOUNDRY_ENDPOINT and AZURE_RESOURCE:
     FOUNDRY_ENDPOINT = f"https://{AZURE_RESOURCE}.cognitiveservices.azure.com/"
 
 # ─── Mistral La Plateforme API (api.mistral.ai) ─────────────────────────────
-# Sign up at https://console.mistral.ai/ — free tier includes API credits
+# Sign up at https://console.mistral.ai/ - free tier includes API credits
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")  # from console.mistral.ai
 MISTRAL_BASE_URL = "https://api.mistral.ai/v1/"  # OpenAI-compatible
 
@@ -95,12 +95,12 @@ if PROVIDER == "mistral" and MODEL == "Mistral-Large-3":
 # ─── Full Mistral model catalog ─────────────────────────────────────────────
 #
 # THREE TIERS:
-#   1. FOUNDRY  — Mistral-Large-3 ONLY (sold directly by Azure, no marketplace)
-#   2. MISTRAL  — La Plateforme API (all models, pay-per-token, incl. Voxtral)
-#   3. LOCAL    — Open-source on RTX 5090 (32GB) — free, QLoRA/LoRA fine-tunable
+#   1. FOUNDRY  - Mistral-Large-3 ONLY (sold directly by Azure, no marketplace)
+#   2. MISTRAL  - La Plateforme API (all models, pay-per-token, incl. Voxtral)
+#   3. LOCAL    - Open-source on RTX 5090 (32GB) - free, QLoRA/LoRA fine-tunable
 #
 # ⚠️  Foundry partner models (Ministral-3B, Mistral-small-2503, Mistral-medium-2505,
-#     Codestral-2501) require Azure Marketplace subscription — NOT usable with
+#     Codestral-2501) require Azure Marketplace subscription - NOT usable with
 #     a direct Azure subscription. Use "mistral" or "local" provider instead.
 #
 MISTRAL_MODELS = {
@@ -108,13 +108,13 @@ MISTRAL_MODELS = {
     # TIER 1: MICROSOFT FOUNDRY (direct from Azure, no marketplace)
     # ══════════════════════════════════════════════════════════════════════════
     "Mistral-Large-3": {
-        "description": "🏆 Mistral Large 3 — 675B / 41B active (MoE). BEST teacher. Deployed on Foundry!",
+        "description": "🏆 Mistral Large 3 - 675B / 41B active (MoE). BEST teacher. Deployed on Foundry!",
         "context": 256000,
         "tool_calling": True,
         "params": "675B total / 41B active",
         "provider": "foundry",
         "role": "teacher",
-        "pricing": "Azure pay-per-token (sold directly by Azure — NO marketplace needed)",
+        "pricing": "Azure pay-per-token (sold directly by Azure - NO marketplace needed)",
         "fine_tunable": True,
         "api_name": "Mistral-Large-3",
     },
@@ -123,7 +123,7 @@ MISTRAL_MODELS = {
     # TIER 2: MISTRAL LA PLATEFORME API (all models, pay-per-token)
     # ══════════════════════════════════════════════════════════════════════════
     "mistral-large-latest": {
-        "description": "Mistral Large 3 via La Plateforme — same model as Foundry, alternative endpoint",
+        "description": "Mistral Large 3 via La Plateforme - same model as Foundry, alternative endpoint",
         "context": 256000,
         "tool_calling": True,
         "params": "675B total / 41B active",
@@ -134,7 +134,7 @@ MISTRAL_MODELS = {
         "api_name": "mistral-large-latest",
     },
     "mistral-medium-latest": {
-        "description": "Mistral Medium 3.1 — PREMIER (closed), frontier multimodal (text+image)",
+        "description": "Mistral Medium 3.1 - PREMIER (closed), frontier multimodal (text+image)",
         "context": 128000,
         "tool_calling": True,
         "params": "undisclosed",
@@ -145,7 +145,7 @@ MISTRAL_MODELS = {
         "api_name": "mistral-medium-latest",
     },
     "mistral-small-latest": {
-        "description": "Mistral Small 3.2 (v25.06) — OPEN, 24B, vision + function calling ✅",
+        "description": "Mistral Small 3.2 (v25.06) - OPEN, 24B, vision + function calling ✅",
         "context": 128000,
         "tool_calling": True,
         "params": "~24B",
@@ -156,7 +156,7 @@ MISTRAL_MODELS = {
         "api_name": "mistral-small-latest",
     },
     "ministral-8b-latest": {
-        "description": "🆕 Ministral 3 8B (v25.12) — vision + agentic, 256k ctx, edge-optimized",
+        "description": "🆕 Ministral 3 8B (v25.12) - vision + agentic, 256k ctx, edge-optimized",
         "context": 256000,
         "tool_calling": True,
         "params": "8.4B LM + 0.4B vision encoder",
@@ -167,7 +167,7 @@ MISTRAL_MODELS = {
         "api_name": "ministral-8b-latest",
     },
     "ministral-3b-latest": {
-        "description": "🎯 Ministral 3 3B (v25.12) — vision + agentic, edge student, fits 8GB VRAM",
+        "description": "🎯 Ministral 3 3B (v25.12) - vision + agentic, edge student, fits 8GB VRAM",
         "context": 256000,
         "tool_calling": True,
         "params": "3.4B LM + 0.4B vision encoder",
@@ -178,7 +178,7 @@ MISTRAL_MODELS = {
         "api_name": "ministral-3b-latest",
     },
     "open-mistral-nemo": {
-        "description": "Mistral Nemo 12B — open-source, good mid-size student",
+        "description": "Mistral Nemo 12B - open-source, good mid-size student",
         "context": 128000,
         "tool_calling": True,
         "params": "12B",
@@ -189,7 +189,7 @@ MISTRAL_MODELS = {
         "api_name": "open-mistral-nemo",
     },
     "codestral-latest": {
-        "description": "Codestral (v25.08) — PREMIER (closed), code specialist (via API)",
+        "description": "Codestral (v25.08) - PREMIER (closed), code specialist (via API)",
         "context": 262144,
         "tool_calling": False,
         "params": "22B",
@@ -200,7 +200,7 @@ MISTRAL_MODELS = {
         "api_name": "codestral-latest",
     },
     "magistral-small-latest": {
-        "description": "🧠 Magistral Small 1.2 (v25.09) — OPEN reasoning model, great for complex planning",
+        "description": "🧠 Magistral Small 1.2 (v25.09) - OPEN reasoning model, great for complex planning",
         "context": 40960,
         "tool_calling": True,
         "params": "~24B",
@@ -212,18 +212,18 @@ MISTRAL_MODELS = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # TIER 3: LOCAL — Open-source models for RTX 5090 (32GB VRAM)
+    # TIER 3: LOCAL - Open-source models for RTX 5090 (32GB VRAM)
     #         QLoRA (4-bit) training or full fine-tune for smaller models
-    #         ALL Apache 2.0 — fully open weights from HuggingFace
+    #         ALL Apache 2.0 - fully open weights from HuggingFace
     # ══════════════════════════════════════════════════════════════════════════
     "Ministral-3-8B-Local": {
-        "description": "🆕📦 Ministral 3 8B (Dec 2025) — vision + agentic, 256k ctx, Apache 2.0",
+        "description": "🆕📦 Ministral 3 8B (Dec 2025) - vision + agentic, 256k ctx, Apache 2.0",
         "context": 256000,
         "tool_calling": True,
         "params": "8.4B LM + 0.4B vision encoder",
         "provider": "local",
         "role": "student",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Ministral-3-8B-Instruct-2512",
         "hf_model": "mistralai/Ministral-3-8B-Instruct-2512",
@@ -232,13 +232,13 @@ MISTRAL_MODELS = {
         "training": "QLoRA (fits easily on 5090) or LoRA",
     },
     "Ministral-3-3B-Local": {
-        "description": "🎯📦 Ministral 3 3B (Dec 2025) — vision + agentic, fits 8GB, perfect for Orin Nano",
+        "description": "🎯📦 Ministral 3 3B (Dec 2025) - vision + agentic, fits 8GB, perfect for Orin Nano",
         "context": 256000,
         "tool_calling": True,
         "params": "3.4B LM + 0.4B vision encoder",
         "provider": "local",
         "role": "student",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Ministral-3-3B-Instruct-2512",
         "hf_model": "mistralai/Ministral-3-3B-Instruct-2512",
@@ -247,13 +247,13 @@ MISTRAL_MODELS = {
         "training": "QLoRA or full fine-tune (fits entirely in 5090 BF16)",
     },
     "Ministral-3-14B-Local": {
-        "description": "📦 Ministral 3 14B (Dec 2025) — vision + agentic, highest quality edge model",
+        "description": "📦 Ministral 3 14B (Dec 2025) - vision + agentic, highest quality edge model",
         "context": 256000,
         "tool_calling": True,
         "params": "14B+ LM + 0.4B vision encoder",
         "provider": "local",
         "role": "student",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Ministral-3-14B-Instruct-2512",
         "hf_model": "mistralai/Ministral-3-14B-Instruct-2512",
@@ -262,13 +262,13 @@ MISTRAL_MODELS = {
         "training": "QLoRA only (4-bit base ~8GB + adapter + optimizer ≈ 16GB)",
     },
     "Mistral-Small-3.2-Local": {
-        "description": "📦 Mistral Small 3.2 (Jun 2025) — 24B, vision, OPEN Apache 2.0",
+        "description": "📦 Mistral Small 3.2 (Jun 2025) - 24B, vision, OPEN Apache 2.0",
         "context": 128000,
         "tool_calling": True,
         "params": "~24B",
         "provider": "local",
         "role": "student",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
         "hf_model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
@@ -277,13 +277,13 @@ MISTRAL_MODELS = {
         "training": "QLoRA only (4-bit base ~13GB + adapter + optimizer ≈ 20GB)",
     },
     "Devstral-2-Local": {
-        "description": "🔧📦 Devstral 2 (Dec 2025) — OPEN, code agent specialist, Apache 2.0",
+        "description": "🔧📦 Devstral 2 (Dec 2025) - OPEN, code agent specialist, Apache 2.0",
         "context": 262144,
         "tool_calling": True,
         "params": "~24B",
         "provider": "local",
         "role": "specialist",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Devstral-2-2512",
         "hf_model": "mistralai/Devstral-2-2512",
@@ -292,13 +292,13 @@ MISTRAL_MODELS = {
         "training": "QLoRA only",
     },
     "Mistral-Nemo-12B-Local": {
-        "description": "📦 Mistral Nemo 12B Instruct — QLoRA on 5090, Apache 2.0",
+        "description": "📦 Mistral Nemo 12B Instruct - QLoRA on 5090, Apache 2.0",
         "context": 128000,
         "tool_calling": True,
         "params": "12B",
         "provider": "local",
         "role": "student",
-        "pricing": "FREE — Apache 2.0",
+        "pricing": "FREE - Apache 2.0",
         "fine_tunable": True,
         "api_name": "mistralai/Mistral-Nemo-Instruct-2407",
         "hf_model": "mistralai/Mistral-Nemo-Instruct-2407",
@@ -309,13 +309,13 @@ MISTRAL_MODELS = {
 
     # ── VOICE / ASR MODELS (for speech → text → tool-calling pipeline) ───────
     "Voxtral-Mini-4B-Realtime": {
-        "description": "🎤 Voxtral Mini 4B Realtime — streaming ASR, Apache 2.0, runs on RTX 5090",
+        "description": "🎤 Voxtral Mini 4B Realtime - streaming ASR, Apache 2.0, runs on RTX 5090",
         "context": 131072,  # ~3 hours of audio
         "tool_calling": False,
         "params": "4B (3.4B LM + 970M audio encoder)",
         "provider": "local",
         "role": "specialist",
-        "pricing": "FREE — Apache 2.0, self-hosted",
+        "pricing": "FREE - Apache 2.0, self-hosted",
         "fine_tunable": False,
         "api_name": "mistralai/Voxtral-Mini-4B-Realtime-2602",
         "hf_model": "mistralai/Voxtral-Mini-4B-Realtime-2602",
@@ -328,7 +328,7 @@ MISTRAL_MODELS = {
     },
 }
 
-# ─── Tool definitions — OpenClaw-style personal AI assistant tools ────────────
+# ─── Tool definitions - OpenClaw-style personal AI assistant tools ────────────
 # These mirror the actual capabilities of OpenClaw (openclaw.ai) skills:
 # gog (Gmail/Calendar/Drive), imsg (iMessage), wacli (WhatsApp), xurl (Twitter/X),
 # bluebubbles, signal, browser, spotify, smart home, etc.
@@ -481,7 +481,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "browser_action",
-            "description": "Control a browser — navigate, screenshot, click, type, extract content.",
+            "description": "Control a browser - navigate, screenshot, click, type, extract content.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -569,7 +569,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "smart_home",
-            "description": "Control smart home devices — Philips Hue lights, 8Sleep mattress, Home Assistant.",
+            "description": "Control smart home devices - Philips Hue lights, 8Sleep mattress, Home Assistant.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -586,7 +586,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "spotify_control",
-            "description": "Control Spotify playback — play, pause, skip, search, queue.",
+            "description": "Control Spotify playback - play, pause, skip, search, queue.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -629,7 +629,7 @@ TOOLS = [
     },
 ]
 
-# ─── Scenario templates — Tiered by complexity ──────────────────────────────
+# ─── Scenario templates - Tiered by complexity ──────────────────────────────
 # SHORT: 1 tool, instant reaction, <200ms target on edge
 # MEDIUM: 2-3 tools, requires planning, some conditional logic
 # LONG: 4+ tools, multi-step reasoning, conditional branching, reflection
@@ -639,69 +639,69 @@ SCENARIOS_SHORT = [
     "User says 'turn off the living room lights.'",
     "User says 'what song is playing right now?'",
     "User says 'play some chill lo-fi beats.'",
-    "User says 'look at me' — robot should look straight ahead at face level.",
-    "User says 'nod if you understand' — robot should nod.",
+    "User says 'look at me' - robot should look straight ahead at face level.",
+    "User says 'nod if you understand' - robot should nod.",
     "User says 'what's on my calendar today?'",
     "User says 'set the bedroom lights to 30% brightness and warm white.'",
     "User says 'what's the temperature in the house right now?'",
     "User says 'skip this track and queue up Bohemian Rhapsody.'",
     "User says 'play my Discover Weekly playlist.'",
     "User says 'send a WhatsApp to +15559876543 saying I'm running 15 minutes late.'",
-    "User says 'text my mom that I'll be home for dinner at 7' — number is +15551234567.",
+    "User says 'text my mom that I'll be home for dinner at 7' - number is +15551234567.",
     "User says 'send an iMessage to john@icloud.com saying the meeting is confirmed.'",
-    "User says 'send a Signal message to +15551112222 — tell them the documents are encrypted and ready.'",
+    "User says 'send a Signal message to +15551112222 - tell them the documents are encrypted and ready.'",
     "User says 'send a Telegram message to @devteam_chat saying the deployment succeeded.'",
     "User says 'schedule a meeting with the AI team tomorrow from 2-3pm titled Sprint Planning.'",
     "User says 'set a reminder in 30 minutes to take my medication.'",
-    "User says 'tweet: Just shipped our hackathon project — an embodied AI assistant on @ReachyRobot! 🤖🦞'",
-    "User says 'what can you do?' — robot should explain its OpenClaw capabilities.",
+    "User says 'tweet: Just shipped our hackathon project - an embodied AI assistant on @ReachyRobot! 🤖🦞'",
+    "User says 'what can you do?' - robot should explain its OpenClaw capabilities.",
     "User says something the robot can't help with: 'can you order me an Uber?'",
     "User gives a vague request: 'do something useful.'",
-    "User says 'you seem excited!' — robot should express happy.",
+    "User says 'you seem excited!' - robot should express happy.",
     "User says 'send an email to sarah@company.com about rescheduling our 3pm meeting to 4pm.'",
-    "User says 'block out Friday afternoon for deep work — no meetings.'",
+    "User says 'block out Friday afternoon for deep work - no meetings.'",
     "User says 'take a screenshot of the current page and describe what you see.'",
 ]
 
 SCENARIOS_MEDIUM = [
     # ── 2-3 tools, requires thinking about order and dependencies ──
-    "User says 'check my email for anything important from the last 24 hours' — search email, then look at user and speak the summary aloud.",
-    "User says 'find all emails from Amazon in the last week and summarize my recent orders' — search email, then speak the summary.",
-    "User says 'draft a reply to the last email from my boss — tell them the report will be ready by Friday' — search for boss's email, then send reply.",
-    "User says 'lock the front door and turn off all downstairs lights.' — two smart home actions.",
-    "User says 'move my 10am to 11am and let the attendees know' — list events to find the 10am, then create/modify event.",
-    "User asks 'do I have any conflicts next week?' — list events, analyze for overlaps, speak result.",
-    "User says 'go to Hacker News and tell me the top 5 stories right now' — browse website, then speak summary.",
-    "User says 'open Amazon and check the price of the Sony WH-1000XM5 headphones' — browse, then speak price.",
-    "User says 'check the weather, then if it's nice, message the group chat on Signal about meeting at the park at 4pm.' — search web for weather, conditionally send Signal message.",
-    "User says 'WhatsApp the group about tonight's dinner reservation at 8pm' — check calendar for the reservation details, then send WhatsApp.",
-    "User says 'check my mentions on Twitter and summarize any replies' — search web for mentions, speak summary.",
-    "User says 'read me my emails while I eat breakfast' — search email, look at user, speak the summaries aloud.",
+    "User says 'check my email for anything important from the last 24 hours' - search email, then look at user and speak the summary aloud.",
+    "User says 'find all emails from Amazon in the last week and summarize my recent orders' - search email, then speak the summary.",
+    "User says 'draft a reply to the last email from my boss - tell them the report will be ready by Friday' - search for boss's email, then send reply.",
+    "User says 'lock the front door and turn off all downstairs lights.' - two smart home actions.",
+    "User says 'move my 10am to 11am and let the attendees know' - list events to find the 10am, then create/modify event.",
+    "User asks 'do I have any conflicts next week?' - list events, analyze for overlaps, speak result.",
+    "User says 'go to Hacker News and tell me the top 5 stories right now' - browse website, then speak summary.",
+    "User says 'open Amazon and check the price of the Sony WH-1000XM5 headphones' - browse, then speak price.",
+    "User says 'check the weather, then if it's nice, message the group chat on Signal about meeting at the park at 4pm.' - search web for weather, conditionally send Signal message.",
+    "User says 'WhatsApp the group about tonight's dinner reservation at 8pm' - check calendar for the reservation details, then send WhatsApp.",
+    "User says 'check my mentions on Twitter and summarize any replies' - search web for mentions, speak summary.",
+    "User says 'read me my emails while I eat breakfast' - search email, look at user, speak the summaries aloud.",
     "User says 'use Signal to tell Alex the meeting room changed to B204, and set a reminder for the meeting in 1 hour.'",
-    "User says 'turn on the porch lights and play jazz music.' — smart home + spotify.",
-    "User says 'I have a meeting in 30 minutes — what is it about?' — check calendar, then search email for context, speak the brief.",
-    "User says 'message everyone on WhatsApp that the hackathon demo starts in 30 minutes' — send WhatsApp, express excited, speak confirmation.",
-    "User says 'unsubscribe me from marketing emails' — search recent promo emails, explain what was found, offer to help.",
-    "User says 'check my recent iMessage conversations and tell me if anyone needs a reply' — memory search + speak summary.",
+    "User says 'turn on the porch lights and play jazz music.' - smart home + spotify.",
+    "User says 'I have a meeting in 30 minutes - what is it about?' - check calendar, then search email for context, speak the brief.",
+    "User says 'message everyone on WhatsApp that the hackathon demo starts in 30 minutes' - send WhatsApp, express excited, speak confirmation.",
+    "User says 'unsubscribe me from marketing emails' - search recent promo emails, explain what was found, offer to help.",
+    "User says 'check my recent iMessage conversations and tell me if anyone needs a reply' - memory search + speak summary.",
 ]
 
 SCENARIOS_LONG = [
     # ── 4+ tools, multi-step reasoning, conditional branching, reflection ──
-    "User says 'check my email for any meeting invites, add them to my calendar, and text me a summary on WhatsApp' — search email → parse invites → create calendar events → send WhatsApp summary → reflect on what was done.",
-    "User asks 'what time is my flight tomorrow?' — search email for booking confirmations → check calendar → cross-reference → speak the answer → set a reminder for departure.",
-    "User says 'search for the best pizza places near me, send the top 3 to my wife on iMessage, and remind me to make a reservation in 2 hours' — web search → filter results → send iMessage → set reminder → confirm.",
-    "User says 'turn on the porch lights, play jazz music, and send a WhatsApp to the dinner guests that I'm ready for them' — smart home → spotify → WhatsApp → express happy → speak confirmation.",
-    "User says 'look up today's Hacker News top stories, draft an email summarizing the AI ones, and post a tweet about the most interesting one' — browse HN → filter for AI → draft email → send email → compose tweet → post tweet → reflect.",
-    "User says 'help me plan a productive morning routine' — think about components → search web for best practices → create 5 calendar events → set 3 reminders → speak the plan → express encouraging.",
-    "User says 'I have a presentation in 2 hours, help me prepare' — check calendar for presentation details → search web for the topic → search memory for past prep notes → express encouragement → set reminder at T-15min → speak the brief.",
-    "User says 'I want to disconnect this weekend — help me set up an auto-reply on email and let my close contacts know on WhatsApp and iMessage' — draft auto-reply email → search memory for close contacts → send WhatsApp to each → send iMessage to each → create calendar block → reflect on coverage.",
-    "User says 'my mom's birthday is next week — help me plan something' — search web for gift ideas → check calendar for conflicts → search memory for mom's preferences → create calendar event for party → draft email invite → send WhatsApp to family → speak the plan.",
-    "User says 'check my messages across all platforms and give me a briefing' — search email → search memory for WhatsApp context → search memory for iMessage context → look at user → speak comprehensive briefing → express appropriate emotion.",
-    "User asks 'email my boss, text my wife, and play some music — oh and turn off the kitchen lights' — search memory for boss email + wife number → send email → send iMessage → play spotify → smart home lights off → speak confirmation of all 4.",
-    "User says 'I'm hosting a dinner party tonight — help me get ready' — check calendar for guest list → search web for recipe ideas → turn on ambient lights → play dinner playlist → send WhatsApp to guests with arrival time → set reminder for oven → speak the plan.",
-    "User says 'I think I double-booked myself tomorrow — can you check and fix it?' — list calendar events → identify conflicts → search email for context on each → decide which to move → reschedule the less important one → email affected attendees → speak what was done.",
-    "User says 'give me a full morning briefing' — check calendar for today → search email for overnight messages → search web for news + weather → look at user → speak comprehensive briefing → express appropriate emotion based on schedule density.",
-    "User says 'help me prepare for my job interview at Google next Tuesday' — check calendar to confirm → search web for Google interview tips → search memory for relevant experience notes → create study calendar events for the weekend → set daily reminders → draft a thank-you email template → speak the prep plan.",
+    "User says 'check my email for any meeting invites, add them to my calendar, and text me a summary on WhatsApp' - search email → parse invites → create calendar events → send WhatsApp summary → reflect on what was done.",
+    "User asks 'what time is my flight tomorrow?' - search email for booking confirmations → check calendar → cross-reference → speak the answer → set a reminder for departure.",
+    "User says 'search for the best pizza places near me, send the top 3 to my wife on iMessage, and remind me to make a reservation in 2 hours' - web search → filter results → send iMessage → set reminder → confirm.",
+    "User says 'turn on the porch lights, play jazz music, and send a WhatsApp to the dinner guests that I'm ready for them' - smart home → spotify → WhatsApp → express happy → speak confirmation.",
+    "User says 'look up today's Hacker News top stories, draft an email summarizing the AI ones, and post a tweet about the most interesting one' - browse HN → filter for AI → draft email → send email → compose tweet → post tweet → reflect.",
+    "User says 'help me plan a productive morning routine' - think about components → search web for best practices → create 5 calendar events → set 3 reminders → speak the plan → express encouraging.",
+    "User says 'I have a presentation in 2 hours, help me prepare' - check calendar for presentation details → search web for the topic → search memory for past prep notes → express encouragement → set reminder at T-15min → speak the brief.",
+    "User says 'I want to disconnect this weekend - help me set up an auto-reply on email and let my close contacts know on WhatsApp and iMessage' - draft auto-reply email → search memory for close contacts → send WhatsApp to each → send iMessage to each → create calendar block → reflect on coverage.",
+    "User says 'my mom's birthday is next week - help me plan something' - search web for gift ideas → check calendar for conflicts → search memory for mom's preferences → create calendar event for party → draft email invite → send WhatsApp to family → speak the plan.",
+    "User says 'check my messages across all platforms and give me a briefing' - search email → search memory for WhatsApp context → search memory for iMessage context → look at user → speak comprehensive briefing → express appropriate emotion.",
+    "User asks 'email my boss, text my wife, and play some music - oh and turn off the kitchen lights' - search memory for boss email + wife number → send email → send iMessage → play spotify → smart home lights off → speak confirmation of all 4.",
+    "User says 'I'm hosting a dinner party tonight - help me get ready' - check calendar for guest list → search web for recipe ideas → turn on ambient lights → play dinner playlist → send WhatsApp to guests with arrival time → set reminder for oven → speak the plan.",
+    "User says 'I think I double-booked myself tomorrow - can you check and fix it?' - list calendar events → identify conflicts → search email for context on each → decide which to move → reschedule the less important one → email affected attendees → speak what was done.",
+    "User says 'give me a full morning briefing' - check calendar for today → search email for overnight messages → search web for news + weather → look at user → speak comprehensive briefing → express appropriate emotion based on schedule density.",
+    "User says 'help me prepare for my job interview at Google next Tuesday' - check calendar to confirm → search web for Google interview tips → search memory for relevant experience notes → create study calendar events for the weekend → set daily reminders → draft a thank-you email template → speak the prep plan.",
 ]
 
 # Combined flat list for backward compatibility
@@ -751,7 +751,7 @@ Step 2 can run in parallel with step 1. Step 3 depends on both. Step 4 is proact
 
 You run as a 24/7 personal AI assistant. Be proactive, helpful, and natural.
 Express appropriate emotions through your robotic head while communicating.
-If you're unsure, ask for clarification. Respect privacy — confirm before
+If you're unsure, ask for clarification. Respect privacy - confirm before
 sending messages on behalf of the user."""
 
 
@@ -774,7 +774,7 @@ def create_client(provider: str = None) -> OpenAI:
     provider = provider or PROVIDER
 
     if provider == "mistral":
-        # Mistral La Plateforme — all models, no marketplace
+        # Mistral La Plateforme - all models, no marketplace
         if not MISTRAL_API_KEY:
             print("❌ MISTRAL_API_KEY not set. Get one at https://console.mistral.ai/")
             sys.exit(1)
@@ -784,7 +784,7 @@ def create_client(provider: str = None) -> OpenAI:
         # Local inference server (vLLM, Ollama, llama.cpp)
         return OpenAI(base_url=LOCAL_BASE_URL, api_key="not-needed")
 
-    # Microsoft Foundry — Mistral-Large-3 (sold directly by Azure)
+    # Microsoft Foundry - Mistral-Large-3 (sold directly by Azure)
     if not FOUNDRY_ENDPOINT:
         print("❌ FOUNDRY_ENDPOINT not set. Options:")
         print("   1. Set FOUNDRY_ENDPOINT to your deployment URL from ai.azure.com")
@@ -812,15 +812,15 @@ def create_client(provider: str = None) -> OpenAI:
 
 
 def list_mistral_models():
-    """Print all available Mistral models — Foundry, La Plateforme, and local."""
+    """Print all available Mistral models - Foundry, La Plateforme, and local."""
     print("\n🔍 Mistral AI model catalog for Reachy Copilot:")
     print("=" * 85)
 
     # Group by provider tier
     for tier_label, tier_key in [
-        ("☁️  TIER 1: MICROSOFT FOUNDRY (direct from Azure — no marketplace needed)", "foundry"),
+        ("☁️  TIER 1: MICROSOFT FOUNDRY (direct from Azure - no marketplace needed)", "foundry"),
         ("🌐 TIER 2: MISTRAL LA PLATEFORME API (all models, pay-per-token)", "mistral"),
-        ("🖥️  TIER 3: LOCAL on RTX 5090 (32GB) — open-source, free", "local"),
+        ("🖥️  TIER 3: LOCAL on RTX 5090 (32GB) - open-source, free", "local"),
     ]:
         print(f"\n  {tier_label}")
         print("  " + "-" * 81)
@@ -855,7 +855,7 @@ def list_mistral_models():
     print()
     print("  🎤 VOICE PIPELINE (Reachy Copilot):")
     print("     Voxtral Mini 4B (local) → streaming ASR → tool-calling LLM → Reachy actions")
-    print("     Apache 2.0 — fully self-hosted, no API costs!")
+    print("     Apache 2.0 - fully self-hosted, no API costs!")
     print()
     print("  💡 USAGE:")
     print("     Teacher (Foundry):      --provider foundry --model Mistral-Large-3")

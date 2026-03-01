@@ -11,7 +11,7 @@ The hackathon’s prize structure strongly suggests you should “aim” your bu
 - **Best Vibe Usage** (branded AirPods). citeturn1view0  
 - **Best Use of ElevenLabs** (voice credits per team member). citeturn1view0turn10search0  
 - **Best Video Game Project** (branded Game Boy Color + Supercell consideration). citeturn1view0turn10search5  
-- **Best Use of Agent Skills** (Custom Reachy Mini—this aligns eerily well with your physical-AI interests). citeturn1view0  
+- **Best Use of Agent Skills** (Custom Reachy Mini - this aligns eerily well with your physical-AI interests). citeturn1view0  
 - **Best Architectural Modification** (Tilde Research-linked). citeturn1view0  
 
 Sponsors also hint at what plays well: experiment tracking (entity["company","Weights & Biases","ml experiment tracking"]), hardware acceleration (entity["company","NVIDIA","gpu hardware company"]), cloud infra (entity["company","Amazon Web Services","cloud provider"]), models + tooling (entity["company","Hugging Face","ml model hub"]), voice (entity["company","ElevenLabs","voice ai company"]), games (entity["company","Supercell","mobile game company"]), and architecture/linguistics research (entity["company","Tilde Research","nlp research lab"]). citeturn1view0
@@ -30,7 +30,7 @@ Mistral’s current ecosystem makes “agentic + multimodal” a first-class pat
 
 - **Mistral Large 3** is positioned as an **open-weight, flagship multimodal model**, with a large context window and “agentic capabilities,” which is exactly what you want for a tool-using system rather than basic chat/RAG. citeturn5view0turn1view3  
 - The **Mistral Agents/Conversations API** explicitly supports persistent state, multimodal models, built-in tools, and **handoffs** (agent-to-agent delegation). citeturn14view0turn15view0  
-- If you want to chase “Best Vibe Usage,” **Mistral Vibe 2.0** is a terminal-native coding agent featuring custom subagents and slash-command skills—meaning you can plausibly treat “Vibe” as part of your product workflow or even your demo story. citeturn1view1  
+- If you want to chase “Best Vibe Usage,” **Mistral Vibe 2.0** is a terminal-native coding agent featuring custom subagents and slash-command skills - meaning you can plausibly treat “Vibe” as part of your product workflow or even your demo story. citeturn1view1  
 
 ### Microsoft/Azure alignment that helps you “show this to bosses/customers”
 
@@ -51,8 +51,8 @@ If you want a medical route that is *not* “do X-ray classification,” you hav
 
 You have two practical “weekend” options for adding real learning:
 
-- **TRL** (Transformer Reinforcement Learning) supports SFT, DPO, reward modeling, PPO variants including GRPO, etc.—meaning you can do small, targeted runs (LoRA/QLoRA) overnight. citeturn3search0turn3search11turn3search4  
-- **Agent Lightning** is designed to wrap an existing agent framework and apply RL/prompt optimization/fine-tuning with minimal changes—this is perfect for a hackathon because you can build the system first, then optimize it overnight using traces. citeturn3search2turn3search6turn3search24  
+- **TRL** (Transformer Reinforcement Learning) supports SFT, DPO, reward modeling, PPO variants including GRPO, etc. - meaning you can do small, targeted runs (LoRA/QLoRA) overnight. citeturn3search0turn3search11turn3search4  
+- **Agent Lightning** is designed to wrap an existing agent framework and apply RL/prompt optimization/fine-tuning with minimal changes - this is perfect for a hackathon because you can build the system first, then optimize it overnight using traces. citeturn3search2turn3search6turn3search24  
 
 ## Design patterns that maximize “wow factor” while staying buildable by Sunday morning
 
@@ -67,7 +67,7 @@ Your strongest time-boxed strategy is:
 This matches your RLVR interest (verifiable reward), avoids dependence on new labeled clinical datasets, and makes a crisp demo because you can show “before vs after” metrics. citeturn3search1turn3search0
 
 ### Pattern: Open agent systems, because real hospitals are “open”
-Open systems are defined by agents/tasks/capabilities changing over time, requiring robustness to unexpected changes—exactly the kind of complexity that healthcare ops (and pediatric hospitals) face. fileciteturn0file1turn2view0  
+Open systems are defined by agents/tasks/capabilities changing over time, requiring robustness to unexpected changes - exactly the kind of complexity that healthcare ops (and pediatric hospitals) face. fileciteturn0file1turn2view0  
 Leaning into openness gives “research novelty” *and* a practical story: staffing changes, dynamic consult availability, surge events, and shifting priorities.
 
 ### Pattern: Multimodal that is not “vision just because”
@@ -78,7 +78,7 @@ Your best multimodal hooks that also stay feasible:
 
 ### Pattern: Healthcare safety positioning that judges (and bosses) trust
 If you touch healthcare, keep the framing consistent with Microsoft’s own guidance: these models and prototypes require verification and are not “as-is clinical decision tools.” citeturn13search2turn13search6turn13search19  
-This isn’t just compliance—it’s a credibility multiplier in a hackathon pitch.
+This isn’t just compliance - it’s a credibility multiplier in a hackathon pitch.
 
 ## Project idea portfolio tuned to your interests
 
@@ -196,7 +196,7 @@ A live dashboard showing a simulated pediatric unit over time (queues, staffing,
 ### Recommended build two: Voice-first pediatric Code Blue multi-agent simulator
 
 **What you demo (90 seconds):**  
-A “monitor” UI shows a simulated patient state; agents speak (distinct voices) and coordinate. You flip a scenario switch (“airway equipment failure,” “new team member joins”), and the system adapts—showing open-systems resilience plus voice immersion.
+A “monitor” UI shows a simulated patient state; agents speak (distinct voices) and coordinate. You flip a scenario switch (“airway equipment failure,” “new team member joins”), and the system adapts - showing open-systems resilience plus voice immersion.
 
 **Core architecture:**
 - **Simulator**: state machine with hazards and timed tasks (no need to encode real PALS dosing; keep it procedural and non-clinical, focused on coordination and timing).  
@@ -260,4 +260,4 @@ Your previous system already showcased a multi-stage agentic medical pipeline (v
 So, to feel *distinct* and “new,” the recommended direction is:
 - **coordination + openness + simulation-first learning**, rather than another “medical video analyzer.”
 
-(That aligns tightly with the OASYS framing you already studied: openness introduces uncertainty, dynamism, and planning complexity—exactly the kind of environment where RL/MCTS + agent orchestration is genuinely justified. fileciteturn0file1turn2view0)
+(That aligns tightly with the OASYS framing you already studied: openness introduces uncertainty, dynamism, and planning complexity - exactly the kind of environment where RL/MCTS + agent orchestration is genuinely justified. fileciteturn0file1turn2view0)

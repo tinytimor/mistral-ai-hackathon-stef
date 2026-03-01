@@ -10,11 +10,11 @@
    VRAM: 33.7 GB
    CUDA: 12.8
    Compute capability: sm_120
-   ✅ Blackwell architecture (sm_120) — RTX 5090 supported
-   ✅ BF16 supported — optimal for training
+   ✅ Blackwell architecture (sm_120) - RTX 5090 supported
+   ✅ BF16 supported - optimal for training
 [0;34m[INFO][0m  15:17:30 Checking Python packages...
 ✅ All required packages installed
-[0;32m[✅][0m    15:17:34 W&B API key configured — experiments will be tracked
+[0;32m[✅][0m    15:17:34 W&B API key configured - experiments will be tracked
 [0;32m[✅][0m    15:17:34 HuggingFace token configured
 [0;32m[✅][0m    15:17:34 Environment verification complete!
 
@@ -24,14 +24,14 @@
 
 [0;34m[INFO][0m  15:17:34 Checking base model cache (needed for SFT training)...
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+  ⬇️  needs download Ministral 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
 
 ⚠️  Base model needs downloading. Run without --check-only.
@@ -40,18 +40,18 @@
    1. Accept the license at: https://huggingface.co/mistralai/Ministral-3B-Instruct-2412
    2. Set HF_TOKEN in your .env file
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+  ⬇️  needs download Ministral 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
 
 
-⬇️  Downloading Ministral 3B — primary student model for SFT/GRPO...
+⬇️  Downloading Ministral 3B - primary student model for SFT/GRPO...
    This may take a while (~6 GB)...
 
    Downloading full model mistralai/Ministral-3B-Instruct-2412...

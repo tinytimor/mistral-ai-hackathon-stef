@@ -1,12 +1,12 @@
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+  ⬇️  needs download Ministral 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
 
 ⚠️  Base model needs downloading. Run without --check-only.
@@ -15,18 +15,18 @@
    1. Accept the license at: https://huggingface.co/mistralai/Ministral-3B-Instruct-2412
    2. Set HF_TOKEN in your .env file
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ⬇️  needs download Ministral 3B — primary student model for SFT/GRPO
+  ⬇️  needs download Ministral 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3B-Instruct-2412 🔒 (needs HF_TOKEN) (~6.5 GB)
 
 
-⬇️  Downloading Ministral 3B — primary student model for SFT/GRPO...
+⬇️  Downloading Ministral 3B - primary student model for SFT/GRPO...
    This may take a while (~6 GB)...
 
    Downloading full model mistralai/Ministral-3B-Instruct-2412...

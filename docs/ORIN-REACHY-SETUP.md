@@ -1,4 +1,4 @@
-# 🔌 Orin Nano ↔ Reachy Mini — Hardware Connection Guide
+# 🔌 Orin Nano ↔ Reachy Mini - Hardware Connection Guide
 
 > Complete step-by-step directions for connecting your NVIDIA Jetson Orin Nano Super
 > to the Pollen Robotics Reachy Mini robot.
@@ -56,13 +56,13 @@
 2. The robot will get an IP via DHCP
 3. Find its IP address:
 
-   Option A — mDNS (if supported):
+   Option A - mDNS (if supported):
    $ ping reachy.local
 
-   Option B — Router admin page:
+   Option B - Router admin page:
    Check your router's DHCP clients list
 
-   Option C — nmap scan:
+   Option C - nmap scan:
    $ nmap -sn 192.168.1.0/24 | grep -B2 "Pollen"
 ```
 
@@ -131,7 +131,7 @@ pip install fastapi uvicorn httpx websockets pydantic
 
 ## 4. Reachy Mini SDK Installation
 
-The Reachy Mini uses the **reachy2-sdk** (same SDK as Reachy 2 — the Mini
+The Reachy Mini uses the **reachy2-sdk** (same SDK as Reachy 2 - the Mini
 is essentially a head-only Reachy 2).
 
 ```bash
@@ -162,7 +162,7 @@ python3 -c "from reachy2_sdk import ReachySDK; print('SDK imported successfully'
 
 ```python
 #!/usr/bin/env python3
-"""test_reachy_connection.py — Run this on the Orin Nano"""
+"""test_reachy_connection.py - Run this on the Orin Nano"""
 
 from reachy2_sdk import ReachySDK
 import time
@@ -184,7 +184,7 @@ print("Turning on...")
 reachy.turn_on()
 time.sleep(1)
 
-# Test head movement — look straight ahead
+# Test head movement - look straight ahead
 print("Looking straight ahead...")
 reachy.head.look_at(x=0.5, y=0, z=0.2, duration=1.0, wait=True)
 time.sleep(0.5)
@@ -231,7 +231,7 @@ python3 test_reachy_connection.py
 ### Step 2: Test Audio (Microphone + Speaker)
 
 ```python
-"""test_reachy_audio.py — Test Reachy's microphone and speaker"""
+"""test_reachy_audio.py - Test Reachy's microphone and speaker"""
 
 from reachy2_sdk import ReachySDK
 import time
@@ -259,7 +259,7 @@ reachy.disconnect()
 ### Step 3: Test Camera
 
 ```python
-"""test_reachy_camera.py — Test Reachy's camera"""
+"""test_reachy_camera.py - Test Reachy's camera"""
 
 from reachy2_sdk import ReachySDK
 import time
@@ -286,7 +286,7 @@ Install and configure Ollama on the Orin Nano for local inference.
 ### Install Ollama
 
 ```bash
-# Native install (recommended — supports CUDA on Jetson)
+# Native install (recommended - supports CUDA on Jetson)
 curl -fsSL https://ollama.com/install.sh | sh
 
 # Verify installation
@@ -302,10 +302,10 @@ sudo systemctl status ollama
 ```bash
 # While your fine-tuned model is training on the 5090,
 # test with a small model first:
-ollama pull mistral:7b-instruct-q4_K_M    # ~4.4GB — tight fit
+ollama pull mistral:7b-instruct-q4_K_M    # ~4.4GB - tight fit
 # OR use a smaller model:
-ollama pull phi3:mini-4k-instruct-q4_K_M   # ~2.3GB — comfortable fit
-ollama pull qwen2.5:3b-instruct-q4_K_M     # ~2.0GB — most headroom
+ollama pull phi3:mini-4k-instruct-q4_K_M   # ~2.3GB - comfortable fit
+ollama pull qwen2.5:3b-instruct-q4_K_M     # ~2.0GB - most headroom
 
 # Test it
 ollama run qwen2.5:3b-instruct-q4_K_M "Hello! What can you help me with?"
@@ -370,7 +370,7 @@ cd ~/mistral-ai-hackathon-stef
 # Standalone mode (no 5090 / OpenClaw needed):
 python scripts/06_openclaw_bridge.py --standalone --reachy-ip 192.168.1.42
 
-# With memory service (optional — run in a separate terminal):
+# With memory service (optional - run in a separate terminal):
 python scripts/05_memory_manager.py --serve --port 8100 &
 python scripts/06_openclaw_bridge.py --standalone --reachy-ip 192.168.1.42 --memory-url http://localhost:8100
 
@@ -492,7 +492,7 @@ ollama run reachy-copilot "test" --verbose
 
 # Check GPU usage
 tegrastats | head -5
-# Look for GR3D_FREQ (GPU frequency) — should be non-zero during inference
+# Look for GR3D_FREQ (GPU frequency) - should be non-zero during inference
 ```
 
 ### SDK import error
@@ -512,5 +512,5 @@ pip install git+https://github.com/pollen-robotics/reachy2-sdk.git
 ping -c 10 <REACHY_IP>
 # Should be <2ms on local Ethernet
 
-# If high latency, check for WiFi — use Ethernet instead
+# If high latency, check for WiFi - use Ethernet instead
 ```

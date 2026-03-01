@@ -1,16 +1,16 @@
-# 🤖 Reachy Copilot — Mistral AI Hackathon 2026
+# 🤖 Reachy Copilot - Mistral AI Hackathon 2026
 
-> **Embodied AI assistant** powered by the full Mistral model family on NVIDIA edge hardware —
+> **Embodied AI assistant** powered by the full Mistral model family on NVIDIA edge hardware  - 
 > a fine-tuned Ministral 3B runs locally on a Jetson Orin Nano Super (8GB) via Ollama,
 > with Mistral API for vision (Pixtral), voice (Voxtral ASR), and complex reasoning (Mistral Large),
 > all embodied in a Reachy Mini robot that **sees, hears, speaks, thinks, and moves**.
 
-**[Mistral Worldwide Hackathon](https://mistral.ai/hackathon)** — Feb 28 – Mar 1, 2026, NYC\
+**[Mistral Worldwide Hackathon](https://mistral.ai/hackathon)** - Feb 28 – Mar 1, 2026, NYC\
 Organized in partnership with **Weights & Biases**, **NVIDIA**, **AWS** · Awards by **ElevenLabs**, **Hugging Face**, **Tilde Research**
 
-> ⚠️ **Work in Progress** — Built in just 2 days (Feb 28–Mar 1). The core pipeline is working:
+> ⚠️ **Work in Progress** - Built in just 2 days (Feb 28–Mar 1). The core pipeline is working:
 > local Ministral 3B on Orin Nano + Reachy Mini robot control + Mistral API for ASR/vision/fallback.
-> With more time, the goal is to run **all** multimodal capabilities on-device — Mistral's new
+> With more time, the goal is to run **all** multimodal capabilities on-device - Mistral's new
 > `ministral-3:3b` (3.0 GB, vision + text + tools) is already available on Ollama, making
 > fully offline embodied AI on a $249 board a near-term reality. See [Future Work](#-future-work).
 
@@ -20,23 +20,23 @@ Organized in partnership with **Weights & Biases**, **NVIDIA**, **AWS** · Award
 
 Reachy Copilot is a **physical robot assistant** you can talk to. It:
 
-- 👀 **Sees** — Camera via Reachy's IMX708 → Pixtral vision (Mistral API)
-- 👂 **Hears** — 4 onboard mics → Voxtral ASR (Mistral API) for speech-to-text
-- 🧠 **Thinks** — Fine-tuned Ministral 3B running **locally on Ollama** with tool-calling
-- 🔊 **Speaks** — edge-tts → Reachy's built-in speaker via dmix audio
-- 🤖 **Moves** — Head tracking, nodding, antenna emotions via reachy-mini SDK
-- 🔍 **Searches** — Brave Search API for real-time web queries
-- 🦞 **Orchestrates** — OpenClaw Gateway for session management and tool routing
+- 👀 **Sees** - Camera via Reachy's IMX708 → Pixtral vision (Mistral API)
+- 👂 **Hears** - 4 onboard mics → Voxtral ASR (Mistral API) for speech-to-text
+- 🧠 **Thinks** - Fine-tuned Ministral 3B running **locally on Ollama** with tool-calling
+- 🔊 **Speaks** - edge-tts → Reachy's built-in speaker via dmix audio
+- 🤖 **Moves** - Head tracking, nodding, antenna emotions via reachy-mini SDK
+- 🔍 **Searches** - Brave Search API for real-time web queries
+- 🦞 **Orchestrates** - OpenClaw Gateway for session management and tool routing
 
 ### Demo
 ```bash
-python demo.py              # Text mode — type to chat with Reachy
-python demo.py --voice      # Voice mode — speak to Reachy via mic + Voxtral ASR
+python demo.py              # Text mode - type to chat with Reachy
+python demo.py --voice      # Voice mode - speak to Reachy via mic + Voxtral ASR
 ```
 
 ---
 
-## 🏗️ Architecture — What Runs Where
+## 🏗️ Architecture - What Runs Where
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -58,7 +58,7 @@ python demo.py --voice      # Voice mode — speak to Reachy via mic + Voxtral A
 
 ### Why This Architecture?
 
-**Mistral AI provides the entire model stack** — from 3B edge models to 675B MoE reasoning:
+**Mistral AI provides the entire model stack** - from 3B edge models to 675B MoE reasoning:
 
 | Model | Role | Where | Why Mistral |
 |-------|------|-------|-------------|
@@ -67,9 +67,9 @@ python demo.py --voice      # Voice mode — speak to Reachy via mic + Voxtral A
 | **Pixtral** (via mistral-small) | Camera → description | Mistral API* | Built-in vision, no separate CLIP model |
 | **Mistral Large 3** | Complex reasoning fallback | Mistral API | 675B MoE for multi-step planning |
 
-*\*Currently API calls — see [Future Work](#-future-work) for on-device roadmap.*
+*\*Currently API calls - see [Future Work](#-future-work) for on-device roadmap.*
 
-**NVIDIA provides the edge compute** — the Orin Nano Super (8GB, 67 TOPS) runs the fine-tuned
+**NVIDIA provides the edge compute** - the Orin Nano Super (8GB, 67 TOPS) runs the fine-tuned
 model at <1s latency with 2.8 GB of headroom. The RTX 5090 (32GB) was used for SFT + GRPO
 training, but is **not needed at inference time**.
 
@@ -105,7 +105,7 @@ User speaks → Reachy Mic (4-ch array) → SSH → Orin Nano
 
 ---
 
-## 🚀 Quick Start — Run the Demo
+## 🚀 Quick Start - Run the Demo
 
 ```bash
 # On the Orin Nano (or any machine with Ollama + SSH access to Reachy):
@@ -125,7 +125,7 @@ uv sync --extra dev --extra audio
 .venv/bin/python3 demo.py              # text mode
 .venv/bin/python3 demo.py --voice      # voice mode (mic + Voxtral ASR)
 
-# Environment variables (optional — defaults are set in demo.py):
+# Environment variables (optional - defaults are set in demo.py):
 export REACHY_IP=10.0.0.129
 export MISTRAL_API_KEY=your-key
 export BRAVE_API_KEY=your-key
@@ -134,17 +134,17 @@ export MIC_SECONDS=5            # recording duration per voice turn
 
 ---
 
-## 📊 Experiment Tracking — [Weights & Biases](https://wandb.ai/thalamus_ai/reachy-copilot) *(Hackathon Partner)*
+## 📊 Experiment Tracking - [Weights & Biases](https://wandb.ai/thalamus_ai/reachy-copilot) *(Hackathon Partner)*
 
 [Weights & Biases](https://wandb.ai/) is an **organizing partner** of the Mistral Worldwide Hackathon.
-We use W&B to track all SFT and GRPO training experiments — loss curves, reward scores,
-hyperparameters, GPU utilization, and model checkpoints — across our RTX 5090 training runs.
+We use W&B to track all SFT and GRPO training experiments - loss curves, reward scores,
+hyperparameters, GPU utilization, and model checkpoints - across our RTX 5090 training runs.
 
 🔗 **Live dashboard:** [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
-— 6 completed runs (5 SFT sweeps + 1 GRPO) with full metrics.
+ -  6 completed runs (5 SFT sweeps + 1 GRPO) with full metrics.
 
-📄 **Public training report:** [W&B Report — SFT + GRPO Training Results](https://wandb.ai/thalamus_ai/reachy-copilot/reports/Reachy-with-Nvidia-Orin-Nano-OpenClaw-SFT-GRPO-Training-Results-Mistral-Worldwide-Hackathon-2026---VmlldzoxNjA3MTY1Ng?accessToken=9xuegttcpd4wiqdujkwn8j8cnsspp1ulu1l3t84harjqnvles8eotub2ka766nwv)
-— eval/loss curves, token accuracy, entropy, runtime, samples/sec across all runs.
+📄 **Public training report:** [W&B Report - SFT + GRPO Training Results](https://wandb.ai/thalamus_ai/reachy-copilot/reports/Reachy-with-Nvidia-Orin-Nano-OpenClaw-SFT-GRPO-Training-Results-Mistral-Worldwide-Hackathon-2026---VmlldzoxNjA3MTY1Ng?accessToken=9xuegttcpd4wiqdujkwn8j8cnsspp1ulu1l3t84harjqnvles8eotub2ka766nwv)
+ -  eval/loss curves, token accuracy, entropy, runtime, samples/sec across all runs.
 
 ```bash
 # SFT with different hyperparameters
@@ -161,10 +161,10 @@ python scripts/02_sft_qlora.py --data data/training_data.jsonl --no-wandb
 
 ### 📱 Monitor from Your Laptop (or Phone)
 ```bash
-# W&B dashboard — no VPN needed, works over cellular:
+# W&B dashboard - no VPN needed, works over cellular:
 open https://wandb.ai/thalamus_ai/reachy-copilot
 
-# Pipeline alerts — get push notifications when training finishes or crashes:
+# Pipeline alerts - get push notifications when training finishes or crashes:
 nohup ./run_experiments.sh > pipeline.log 2>&1 & disown
 # Check W&B for alerts ✅ or ❌
 ```
@@ -196,8 +196,8 @@ The experiment runner continues through failures instead of crashing:
 
 ## 🧠 Multi-Agent Architecture
 
-> **All of Reachy's intelligence comes from the Mistral model family** — from a 3B edge model
-> to a 675B cloud reasoner — orchestrated through OpenClaw Gateway on the Orin Nano.
+> **All of Reachy's intelligence comes from the Mistral model family** - from a 3B edge model
+> to a 675B cloud reasoner - orchestrated through OpenClaw Gateway on the Orin Nano.
 
 | Agent | Model | Location | Latency | Role |
 |-------|-------|----------|---------|------|
@@ -205,7 +205,7 @@ The experiment runner continues through failures instead of crashing:
 | Vision | Pixtral (via mistral-small) | Mistral API | ~2s | Camera → scene description |
 | Voice | Voxtral Mini | Mistral API | ~2s | Speech-to-text (ASR) |
 | Reasoning | Mistral Large 3 (675B MoE) | Mistral API | 2-5s | Complex reasoning fallback |
-| Gateway | OpenClaw | **Orin Nano (local)** | — | Session management, memory, skill routing |
+| Gateway | OpenClaw | **Orin Nano (local)** | - | Session management, memory, skill routing |
 
 ### Edge Memory Budget (Orin Nano 8GB)
 ```
@@ -248,7 +248,7 @@ BATTLE-PLAN.md                  # Hackathon strategy & prize targeting
 ## 🤖 Deploying to Orin Nano
 
 The fine-tuned model runs entirely on the Orin Nano (8GB) via Ollama + OpenClaw Gateway
-+ clawd-reachy-mini — no cloud needed.
++ clawd-reachy-mini - no cloud needed.
 
 ### What Gets Deployed
 
@@ -285,26 +285,26 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 # 2. Copy model files from the 5090 (or they may already be on the Orin)
 mkdir -p ~/reachy-model
-# (scp from 5090 — see Option C above)
+# (scp from 5090 - see Option C above)
 
 # 3. Create and test the model
-# IMPORTANT: must cd into the model directory — Modelfile uses a relative path
+# IMPORTANT: must cd into the model directory - Modelfile uses a relative path
 cd ~/reachy-model   # (or wherever model-q4_k_m.gguf lives)
 ollama create reachy-copilot -f Modelfile
 ollama run reachy-copilot "Hello!"
 
 # 4. Install Node.js >= 22 + OpenClaw Gateway
-# Use npm directly — the install.sh script can hang/crash on the Orin
+# Use npm directly - the install.sh script can hang/crash on the Orin
 node --version  # must be >= 22 (already installed via nvm on this machine)
 npm i -g openclaw
 
 # 5. Run onboarding wizard (answer: Mistral / your API key / mistral-large-latest /
 #    No to skills / No to channels / Hatch in TUI)
 openclaw onboard --install-daemon
-# When TUI opens, press q to exit — daemon keeps running
+# When TUI opens, press q to exit - daemon keeps running
 
 # 6. Write the openclaw.json config
-# NOTE: "memory" and "bind" are NOT valid keys — omit them
+# NOTE: "memory" and "bind" are NOT valid keys - omit them
 # NOTE: "mode": "local" is REQUIRED or the gateway refuses to start
 cat > ~/.openclaw/openclaw.json << 'EOF'
 {
@@ -342,16 +342,16 @@ sleep 5 && ss -tlnp | grep 18789   # should show port bound
 # Look for: [gateway] agent model: ollama/reachy-copilot
 
 # 8. Install uv + clone clawd-reachy-mini
-# uv is NOT installed by default — install it first
+# uv is NOT installed by default - install it first
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc  # reload PATH
 
 cd ~
 git clone https://github.com/ArturSkowronski/clawd-reachy-mini.git
 cd clawd-reachy-mini
-# uv sync creates .venv automatically — do NOT use conda or pip
+# uv sync creates .venv automatically - do NOT use conda or pip
 # Warning "'reachy-mini' does not have extra 'vision'" is harmless
-# Downloads ~300 MB (torch, scipy, opencv, etc.) — allow 5-10 min
+# Downloads ~300 MB (torch, scipy, opencv, etc.) - allow 5-10 min
 uv sync --extra dev --extra audio
 uv run clawd-reachy --gateway-host localhost --gateway-port 18789
 
@@ -368,8 +368,8 @@ curl -X POST http://127.0.0.1:18789/v1/chat/completions \
 |-------|-----|
 | `cudaMalloc failed: out of memory` | Close Chrome (`pkill -f chromium`) and VS Code, retry |
 | `Gateway start blocked: set gateway.mode=local` | Add `"mode": "local"` to the `gateway` block in `openclaw.json` |
-| `Unrecognized key: "memory"` | Remove the `memory` block — it's built-in, not configurable |
-| `Invalid input` for `bind` | Remove the `bind` key entirely — let OpenClaw use its default |
+| `Unrecognized key: "memory"` | Remove the `memory` block - it's built-in, not configurable |
+| `Invalid input` for `bind` | Remove the `bind` key entirely - let OpenClaw use its default |
 | Gateway timed out / port not bound | Run `openclaw doctor --fix` then `systemctl --user restart openclaw-gateway.service` |
 | `uv: command not found` | Run `curl -LsSf https://astral.sh/uv/install.sh \| sh && source ~/.bashrc` |
 
@@ -399,7 +399,7 @@ For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/O
 > we built the demo on the Orin Nano in parallel. The SFT + GRPO pipeline works
 > end-to-end, but with more time we'd scale up training data and GRPO iterations.
 
-### W&B Dashboard — [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
+### W&B Dashboard - [wandb.ai/thalamus_ai/reachy-copilot](https://wandb.ai/thalamus_ai/reachy-copilot)
 
 All 6 training runs completed and tracked (RTX 5090, ~12h ago):
 
@@ -425,7 +425,7 @@ All 6 training runs completed and tracked (RTX 5090, ~12h ago):
 - **GRPO:** 4 generations, 1 epoch, 4 reward functions (format, tool relevance, response quality, thinking)
 - **Quantization:** F16 → Q4_K_M via llama.cpp (6.4 GB → 2.0 GB)
 - **GPU:** NVIDIA RTX 5090 (32GB VRAM, Blackwell sm_120)
-- **Experiment tracking:** Weights & Biases — all runs, metrics, and hyperparameters logged
+- **Experiment tracking:** Weights & Biases - all runs, metrics, and hyperparameters logged
 
 **What we'd do with more time:**
 - Scale training data from 100 → 1000+ examples via Mistral Large teacher
@@ -454,7 +454,7 @@ audio + tool-calling in a single model that fits on a $249 board.
 
 **Key insight:** `ministral-3:3b` on Ollama now includes **built-in vision** (Text + Image input)
 at just 3.0 GB. Our current Orin memory budget is ~5.2 GB with 2.8 GB headroom. A vision-enabled
-Ministral 3B could replace Pixtral API calls entirely — the robot could **see and understand
+Ministral 3B could replace Pixtral API calls entirely - the robot could **see and understand
 its environment without any cloud calls**.
 
 ### Roadmap: From Hybrid to Fully On-Device
@@ -478,14 +478,14 @@ FUTURE (months):
   Everything  → Single multimodal Mistral model (text + vision + audio + tools)
   Size        → <4 GB quantized, runs on Orin Nano alongside robot stack
   Latency     → <1s for ALL modalities
-  🎯 Result: True edge AI — works on a plane, in a hospital, anywhere.
+  🎯 Result: True edge AI - works on a plane, in a hospital, anywhere.
 ```
 
 ### Why This Matters
 
 - **Privacy**: Patient data (healthcare use case) never leaves the device
-- **Latency**: No network round-trips — sub-second response for ALL modalities
-- **Reliability**: Works without internet — critical for robotics in the field
+- **Latency**: No network round-trips - sub-second response for ALL modalities
+- **Reliability**: Works without internet - critical for robotics in the field
 - **Cost**: $0/month API costs after initial hardware purchase
 - **Mistral + NVIDIA**: Mistral builds the models that fit; NVIDIA builds the hardware that runs them. Together, they make embodied edge AI real.
 
@@ -495,11 +495,11 @@ FUTURE (months):
 
 | Prize | Value | How We Hit It |
 |-------|-------|---------------|
-| **Local 1st** | $1,500 + $3,000 credits + 3mo ElevenLabs Pro | Full multi-agent architecture — edge + cloud, physical robot on the table |
+| **Local 1st** | $1,500 + $3,000 credits + 3mo ElevenLabs Pro | Full multi-agent architecture - edge + cloud, physical robot on the table |
 | **Local 2nd** | $1,000 + $2,000 credits | Same as above |
 | **Local 3rd** | $500 + $1,000 credits | Same as above |
 | **Best Voice (ElevenLabs)** | $2,000-6,000 in credits | Voice loop: mic → Voxtral ASR → Ministral 3B → ElevenLabs TTS → robot speaker |
-| **Best Architectural Modification (Tilde)** | $500 + internship opportunity | Split-brain: edge model for reactions, cloud for reasoning — quantized + deployed on $249 board |
+| **Best Architectural Modification (Tilde)** | $500 + internship opportunity | Split-brain: edge model for reactions, cloud for reasoning - quantized + deployed on $249 board |
 | **Best Use of Mistral Vibe** | Mistral AirPods | Used Vibe to build the project + Vibe skill for Reachy |
 
 ### Hackathon Partner Technologies Used
@@ -507,7 +507,7 @@ FUTURE (months):
 | Partner | Role in Hackathon | How We Use It |
 |---------|-------------------|---------------|
 | **Mistral AI** | Organizer + model provider | Entire model stack: Ministral 3B (edge), Voxtral (ASR), Pixtral (vision), Mistral Large (reasoning) |
-| **Weights & Biases** | Organizing partner | [6 training runs tracked](https://wandb.ai/thalamus_ai/reachy-copilot) — SFT sweeps + GRPO with full metrics |
+| **Weights & Biases** | Organizing partner | [6 training runs tracked](https://wandb.ai/thalamus_ai/reachy-copilot) - SFT sweeps + GRPO with full metrics |
 | **NVIDIA** | Organizing partner | RTX 5090 (training), Jetson Orin Nano Super (edge deployment, 8GB, 67 TOPS) |
 | **ElevenLabs** | Awards sponsor | High-quality TTS for robot voice output via Reachy speaker |
 | **Hugging Face** | Awards sponsor | Model hosting (Ministral 3B), Transformers + TRL + PEFT for SFT/GRPO training |
@@ -536,9 +536,9 @@ This project builds on the work of many open-source contributors. We gratefully 
 | [Voxtral Mini 3B GGUF](https://huggingface.co/mradermacher/Voxtral-Mini-3B-2507-GGUF) | mradermacher | Apache 2.0 | Pre-quantized for edge audio |
 
 ### Libraries & Hackathon Partners
-[Weights & Biases](https://wandb.ai/) *(hackathon partner — experiment tracking)* ·
-[Hugging Face Transformers](https://github.com/huggingface/transformers) *(hackathon partner — model hosting + training)* ·
-[ElevenLabs](https://elevenlabs.io/) *(hackathon partner — TTS)* ·
+[Weights & Biases](https://wandb.ai/) *(hackathon partner - experiment tracking)* ·
+[Hugging Face Transformers](https://github.com/huggingface/transformers) *(hackathon partner - model hosting + training)* ·
+[ElevenLabs](https://elevenlabs.io/) *(hackathon partner - TTS)* ·
 [TRL](https://github.com/huggingface/trl) ·
 [PEFT](https://github.com/huggingface/peft) ·
 [Ollama](https://ollama.ai/) ·
@@ -547,9 +547,9 @@ This project builds on the work of many open-source contributors. We gratefully 
 [llama.cpp](https://github.com/ggerganov/llama.cpp)
 
 ### Research Inspiration
-- **DeepSeek-R1** — GRPO reinforcement learning approach for reasoning
-- **Mistral Agent Skills** standard — tool-calling format
-- **Split-brain architecture** pattern — edge reactions + cloud reasoning
+- **DeepSeek-R1** - GRPO reinforcement learning approach for reasoning
+- **Mistral Agent Skills** standard - tool-calling format
+- **Split-brain architecture** pattern - edge reactions + cloud reasoning
 
 ---
 

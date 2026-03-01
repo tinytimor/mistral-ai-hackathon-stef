@@ -9,8 +9,8 @@
    VRAM: 33.7 GB
    CUDA: 12.8
    Compute capability: sm_120
-   ✅ Blackwell architecture (sm_120) — RTX 5090 supported
-   ✅ BF16 supported — optimal for training
+   ✅ Blackwell architecture (sm_120) - RTX 5090 supported
+   ✅ BF16 supported - optimal for training
 [0;34m[INFO][0m  15:15:49 Checking Python packages...
 ❌ Missing packages: trl peft wandb openai
    Run: pip install trl peft wandb openai

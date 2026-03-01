@@ -1,25 +1,25 @@
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ✅ cached Ministral 3 3B — primary student model for SFT/GRPO
+  ✅ cached Ministral 3 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
          → /home/slehman/.cache/huggingface/hub/models--mistralai--Ministral-3-3B-Instruct-2512/snapshots/cfcb068fa7c44114cf77a462357c6cdcd2c304b4
 
 ✅ Base model cached and ready for training!
 ============================================================
-  📦 Reachy Copilot — Model Download & Cache Check
+  📦 Reachy Copilot - Model Download & Cache Check
 ============================================================
 
 ============================================================
   📦 Model Status (Training (HuggingFace format))
 ============================================================
 
-  ✅ cached Ministral 3 3B — primary student model for SFT/GRPO
+  ✅ cached Ministral 3 3B - primary student model for SFT/GRPO
          mistralai/Ministral-3-3B-Instruct-2512 (~6.9 GB)
          → /home/slehman/.cache/huggingface/hub/models--mistralai--Ministral-3-3B-Instruct-2512/snapshots/cfcb068fa7c44114cf77a462357c6cdcd2c304b4
 
