@@ -1,8 +1,13 @@
 # 🤖 AGENTS.md — Reachy Copilot Agent Architecture
 
-> Embodied AI assistant running entirely on the edge — fine-tuned Ministral 3B
+> Embodied AI assistant running on the edge — fine-tuned Ministral 3B
 > via Ollama + OpenClaw Gateway + clawd-reachy-mini on Jetson Orin Nano,
-> with Mistral Large as cloud fallback. For the Mistral Worldwide Hackathon 2026.
+> with Mistral API for vision (Pixtral), voice (Voxtral ASR), and complex
+> reasoning (Mistral Large). For the Mistral Worldwide Hackathon 2026.
+
+> ⚠️ **Work in Progress** — Built in 2 days (Feb 28–Mar 1, 2026).
+> Core pipeline is working: local Ministral 3B + Reachy Mini robot + Mistral API.
+> See Section 13 for the roadmap toward fully offline multimodal on-device.
 
 ---
 
@@ -83,10 +88,10 @@ No custom bridge needed — OpenClaw auto-detects Ollama.
 
 ### Capabilities
 - Sub-second response to user presence (head tracking, nodding, expressions)
-- Quick verbal responses via ElevenLabs TTS (clawd-reachy-mini)
-- Real-time speech transcription via Whisper (clawd-reachy-mini)
+- Quick verbal responses via edge-tts → Reachy speaker
+- Real-time speech transcription via Voxtral ASR (Mistral API — on-device planned)
+- Camera-based perception via Pixtral vision (Mistral API — on-device planned)
 - Tool calling for robot control, web search, email, calendar, etc.
-- Camera-based perception (object detection, face tracking)
 
 ### When Invoked
 - **All queries go here first** — it's the primary model
@@ -803,3 +808,39 @@ We gratefully acknowledge:
 - DeepSeek-R1 — GRPO reinforcement learning approach for reasoning
 - Mistral Agent Skills standard — tool-calling format
 - Split-brain architecture pattern — edge reactions + cloud reasoning
+
+---
+
+## 13. Future Work — Fully On-Device Multimodal
+
+> **The goal:** Replace ALL Mistral API calls with on-device models. Zero cloud dependency.
+
+### Current State (Hackathon Demo)
+| Modality | Model | Runs Where | Cloud? |
+|----------|-------|------------|--------|
+| Text + Tools | Ministral 3B Q4_K_M (fine-tuned) | Orin Nano (Ollama) | ❌ Local |
+| Vision | Pixtral (via mistral-small) | Mistral API | ✅ Cloud |
+| ASR | Voxtral Mini | Mistral API | ✅ Cloud |
+| TTS | edge-tts | Orin Nano | ❌ Local |
+
+### What's Now Available on Ollama
+| Model | Size | Capabilities | Orin 8GB? |
+|-------|------|-------------|-----------|
+| `ministral-3:3b` | **3.0 GB** | Text + **Vision** + Tools, 256K ctx | ✅ Swap mode |
+| `ministral-3:8b` | 6.0 GB | Text + **Vision** + Tools, 256K ctx | ⚠️ Tight |
+| Voxtral Mini 3B GGUF | ~2.5 GB | Audio ASR + understanding | ✅ Swap mode |
+
+### Near-Term Target
+```
+Text + Vision → ministral-3:3b on Ollama (3.0 GB, LOCAL)
+ASR           → Voxtral Mini 3B GGUF (2.5 GB, LOCAL, swap mode)
+TTS           → edge-tts or Piper (LOCAL)
+Tools         → OpenClaw skills (LOCAL)
+
+Result: ZERO cloud API calls. Fully offline embodied AI on a $249 board.
+```
+
+### Why Mistral + NVIDIA
+- **Mistral** builds compact, capable models (3B with vision + tools + 256K context)
+- **NVIDIA** builds the edge hardware that runs them (Orin Nano: 67 TOPS, 8GB, $249)
+- Together: true embodied AI that works anywhere — no cloud, no latency, no cost per query

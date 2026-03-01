@@ -1,10 +1,17 @@
 # 🤖 Reachy Copilot — Mistral AI Hackathon 2026
 
-> **Embodied AI assistant** powered by Mistral — fine-tuned Ministral 3B on
-> NVIDIA Orin Nano + Mistral API for vision, voice, and web search,
-> all embodied in a Reachy Mini robot that sees, hears, speaks, and moves.
+> **Embodied AI assistant** powered by the full Mistral model family on NVIDIA edge hardware —
+> a fine-tuned Ministral 3B runs locally on a Jetson Orin Nano Super (8GB) via Ollama,
+> with Mistral API for vision (Pixtral), voice (Voxtral ASR), and complex reasoning (Mistral Large),
+> all embodied in a Reachy Mini robot that **sees, hears, speaks, thinks, and moves**.
 
 **Mistral Worldwide Hackathon** — Feb 28 – Mar 1, 2026, NYC
+
+> ⚠️ **Work in Progress** — Built in just 2 days (Feb 28–Mar 1). The core pipeline is working:
+> local Ministral 3B on Orin Nano + Reachy Mini robot control + Mistral API for ASR/vision/fallback.
+> With more time, the goal is to run **all** multimodal capabilities on-device — Mistral's new
+> `ministral-3:3b` (3.0 GB, vision + text + tools) is already available on Ollama, making
+> fully offline embodied AI on a $249 board a near-term reality. See [Future Work](#-future-work).
 
 ---
 
@@ -12,18 +19,18 @@
 
 Reachy Copilot is a **physical robot assistant** you can talk to. It:
 
-- **Sees** — Camera captures via Reachy's IMX708 → Pixtral vision (Mistral API)
-- **Hears** — 4 onboard mics → Voxtral ASR (Mistral API) for speech-to-text
-- **Thinks** — Fine-tuned Ministral 3B running locally on Ollama with tool-calling
-- **Speaks** — edge-tts → Reachy's built-in speaker via dmix audio
-- **Moves** — Head tracking, nodding, emotions via reachy-mini SDK
-- **Searches** — Brave Search API for real-time web queries
-- **Routes** — OpenClaw Gateway for session management and tool orchestration
+- 👀 **Sees** — Camera via Reachy's IMX708 → Pixtral vision (Mistral API)
+- 👂 **Hears** — 4 onboard mics → Voxtral ASR (Mistral API) for speech-to-text
+- 🧠 **Thinks** — Fine-tuned Ministral 3B running **locally on Ollama** with tool-calling
+- 🔊 **Speaks** — edge-tts → Reachy's built-in speaker via dmix audio
+- 🤖 **Moves** — Head tracking, nodding, antenna emotions via reachy-mini SDK
+- 🔍 **Searches** — Brave Search API for real-time web queries
+- 🦞 **Orchestrates** — OpenClaw Gateway for session management and tool routing
 
-### Demo Modes
+### Demo
 ```bash
-python demo.py              # Text input — type to chat
-python demo.py --voice      # Voice input — speak to Reachy via mic + Voxtral ASR
+python demo.py              # Text mode — type to chat with Reachy
+python demo.py --voice      # Voice mode — speak to Reachy via mic + Voxtral ASR
 ```
 
 ---
@@ -34,46 +41,56 @@ python demo.py --voice      # Voice input — speak to Reachy via mic + Voxtral 
 ┌─────────────────────────────────────────────────────────────────┐
 │                    WHAT RUNS WHERE                               │
 │                                                                  │
-│  🟢 LOCAL (Orin Nano)              🔵 MISTRAL API (Cloud)       │
-│  ├─ Ministral 3B (Ollama)          ├─ Vision: mistral-small     │
-│  │  Chat + tool-calling            │  (Pixtral built-in)        │
-│  ├─ Robot control (reachy SDK)     ├─ ASR: voxtral-mini-2602    │
+│  🟢 LOCAL (Orin Nano 8GB)          🔵 MISTRAL API (Cloud)       │
+│  ├─ Ministral 3B Q4_K_M (Ollama)  ├─ Vision: Pixtral           │
+│  │  Chat + tool-calling (<1s)     │  (via mistral-small)        │
+│  ├─ Robot control (reachy SDK)     ├─ ASR: Voxtral Mini         │
 │  │  Head, antennas, emotions       │  (speech-to-text)          │
-│  ├─ OpenClaw Gateway (:18789)      ├─ Fallback: mistral-large   │
+│  ├─ OpenClaw Gateway (:18789)      ├─ Fallback: Mistral Large   │
 │  │  Memory, sessions, routing      │  (complex reasoning)       │
 │  └─ Camera capture (SSH→Reachy)    └─ Web: Brave Search API     │
 │                                                                  │
-│  🟡 EDGE-TTS (Microsoft, free)                                  │
+│  🟡 EDGE-TTS (free)                                             │
 │  └─ Text-to-speech → Reachy speaker                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Why This Architecture?
+
+**Mistral AI provides the entire model stack** — from 3B edge models to 675B MoE reasoning:
+
+| Model | Role | Where | Why Mistral |
+|-------|------|-------|-------------|
+| **Ministral 3B** | Chat + tool-calling | Orin Nano (local) | Only 2 GB Q4, <1s latency, Apache 2.0 |
+| **Voxtral Mini** | Speech-to-text (ASR) | Mistral API* | Native audio understanding, no Whisper needed |
+| **Pixtral** (via mistral-small) | Camera → description | Mistral API* | Built-in vision, no separate CLIP model |
+| **Mistral Large 3** | Complex reasoning fallback | Mistral API | 675B MoE for multi-step planning |
+
+*\*Currently API calls — see [Future Work](#-future-work) for on-device roadmap.*
+
+**NVIDIA provides the edge compute** — the Orin Nano Super (8GB, 67 TOPS) runs the fine-tuned
+model at <1s latency with 2.8 GB of headroom. The RTX 5090 (32GB) was used for SFT + GRPO
+training, but is **not needed at inference time**.
+
 ### Conversation Flow
 ```
-User speaks → Reachy Mic (dsnoop) → SSH → Orin Nano
-                                            ↓
+User speaks → Reachy Mic (4-ch array) → SSH → Orin Nano
+                                                ↓
                               Voxtral ASR (Mistral API) → text
-                                            ↓
-                              Ministral 3B (Ollama, LOCAL) → response + tool calls
-                                            ↓
+                                                ↓
+                              Ministral 3B (Ollama, LOCAL, <1s) → response + tool calls
+                                                ↓
                               ┌─────────────────────────────────┐
-                              │ Tool Calls:                      │
+                              │ Tool Calls (executed locally):   │
                               │  search_web → Brave Search API   │
-                              │  look_at → reachy SDK (LOCAL)    │
+                              │  look_at → reachy SDK            │
                               │  speak → edge-tts → speaker      │
                               │  see → SSH camera → Pixtral API  │
-                              │  express → reachy SDK (LOCAL)    │
+                              │  express → reachy SDK            │
                               └─────────────────────────────────┘
-                                            ↓
+                                                ↓
                               edge-tts → ffmpeg → SCP → aplay on Reachy speaker
 ```
-
-### Key Design: Split Local + API
-
-The fine-tuned **Ministral 3B** runs locally on the Orin Nano (<1s latency) and handles
-chat, tool-calling, and robot control. Heavy lifting (vision, ASR, web search) goes to
-**Mistral API** and **Brave Search**. This gives us the best of both worlds: fast local
-reactions with powerful cloud capabilities.
 
 ---
 
@@ -81,9 +98,9 @@ reactions with powerful cloud capabilities.
 
 | Device | Role | Specs |
 |--------|------|-------|
-| NVIDIA Orin Nano Super | Edge inference + orchestration | 8GB unified memory, 67 TOPS, JetPack 6.2 |
-| Reachy Mini | Embodied robot | 6-DOF head, antennas, IMX708 camera, 4 mics, speaker |
-| RTX 5090 | Training only (not runtime) | 32GB VRAM, QLoRA SFT + GRPO |
+| NVIDIA Orin Nano Super | Edge inference + orchestration | 8GB unified, 67 TOPS, JetPack 6.2 |
+| Reachy Mini | Embodied robot | 6-DOF head, antennas, IMX708 cam, 4 mics, speaker |
+| RTX 5090 | Training only (not runtime) | 32GB VRAM, Blackwell, QLoRA SFT + GRPO |
 
 ---
 
@@ -169,14 +186,18 @@ The experiment runner continues through failures instead of crashing:
 
 ---
 
-## 🧠 Multi-Agent Model Strategy
+## 🧠 Multi-Agent Architecture
+
+> **All of Reachy's intelligence comes from the Mistral model family** — from a 3B edge model
+> to a 675B cloud reasoner — orchestrated through OpenClaw Gateway on the Orin Nano.
 
 | Agent | Model | Location | Latency | Role |
 |-------|-------|----------|---------|------|
-| Reactive | Ministral 3B Q4_K_M (fine-tuned) | Orin Nano | <1s | Real-time robot control, simple queries |
-| Reactive (Audio) | Voxtral Mini 3B Q4_K_M | Orin Nano | <2s | Voice STT + audio understanding + tool-calling |
-| Reasoning | Mistral Large 3 (675B MoE) | Mistral API (cloud) | 2-5s | Complex reasoning, multi-step planning |
-| Gateway | OpenClaw (model-agnostic) | Orin Nano | — | Session management, memory, skill routing |
+| Reactive | Ministral 3B Q4_K_M (fine-tuned) | **Orin Nano (local)** | <1s | Chat, tool-calling, robot control |
+| Vision | Pixtral (via mistral-small) | Mistral API | ~2s | Camera → scene description |
+| Voice | Voxtral Mini | Mistral API | ~2s | Speech-to-text (ASR) |
+| Reasoning | Mistral Large 3 (675B MoE) | Mistral API | 2-5s | Complex reasoning fallback |
+| Gateway | OpenClaw | **Orin Nano (local)** | — | Session management, memory, skill routing |
 
 ### Edge Memory Budget (Orin Nano 8GB)
 ```
@@ -364,7 +385,11 @@ For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/O
 
 ---
 
-## 📈 Training Results
+## 📈 Training Results (2-Day Sprint)
+
+> Built in just 2 days (Feb 28 – Mar 1, 2026). Training ran on the RTX 5090 while
+> we built the demo on the Orin Nano in parallel. The SFT + GRPO pipeline works
+> end-to-end, but with more time we'd scale up training data and GRPO iterations.
 
 | Phase | Best Model | Metric | Value |
 |-------|-----------|--------|-------|
@@ -373,10 +398,72 @@ For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/O
 
 **Training details:**
 - Base model: `mistralai/Ministral-3-3B-Instruct-2512` (FP8 → dequantized to BF16)
-- SFT: LoRA r=64, lr=2e-4, 3 epochs, 100 training samples
+- SFT: LoRA r=64, lr=2e-4, 3 epochs, 100 training samples (teacher-generated)
 - GRPO: 4 generations, 1 epoch, reward functions for format/tool/response/thinking quality
 - Quantization: F16 → Q4_K_M (6.4 GB → 2.0 GB)
 - W&B dashboard: https://wandb.ai/thalamus_ai/reachy-copilot
+
+**What we'd do with more time:**
+- Scale training data from 100 → 1000+ examples via Mistral Large teacher
+- More GRPO iterations to improve reward scores
+- Fine-tune `ministral-3:3b` with vision (on-device multimodal)
+- Swap in Voxtral Mini for on-device ASR (no API needed)
+
+---
+
+## 🔮 Future Work
+
+> **The path to fully offline embodied AI is shorter than you think.**
+
+Right now, we use Mistral API for vision (Pixtral) and ASR (Voxtral). But Mistral's model
+family is rapidly converging toward **all-in-one edge models** that can do text + vision +
+audio + tool-calling in a single model that fits on a $249 board.
+
+### What's Already Possible (Today)
+
+| Model | Size on Ollama | Capabilities | Fits Orin 8GB? |
+|-------|---------------|--------------|----------------|
+| `ministral-3:3b` | **3.0 GB** | Text + **Vision** + Tools, 256K ctx | ✅ Yes (swap mode) |
+| `ministral-3:8b` | 6.0 GB | Text + **Vision** + Tools, 256K ctx | ⚠️ Tight (~7.5 GB total) |
+| `ministral-3:14b` | 9.1 GB | Text + **Vision** + Tools, 256K ctx | ❌ Too large |
+| Voxtral Mini 3B GGUF | ~2.5 GB | Audio ASR + understanding | ✅ Yes (swap mode) |
+
+**Key insight:** `ministral-3:3b` on Ollama now includes **built-in vision** (Text + Image input)
+at just 3.0 GB. Our current Orin memory budget is ~5.2 GB with 2.8 GB headroom. A vision-enabled
+Ministral 3B could replace Pixtral API calls entirely — the robot could **see and understand
+its environment without any cloud calls**.
+
+### Roadmap: From Hybrid to Fully On-Device
+
+```
+TODAY (Hackathon Demo):
+  Text/Chat   → Ministral 3B Q4_K_M (LOCAL, Ollama, 2.0 GB)
+  Vision      → Pixtral via Mistral API (CLOUD)
+  ASR         → Voxtral via Mistral API (CLOUD)
+  TTS         → edge-tts (LOCAL, free)
+  Tools       → OpenClaw skills (LOCAL)
+
+NEAR-TERM (weeks):
+  Text+Vision → ministral-3:3b (LOCAL, Ollama, 3.0 GB) ← replaces Pixtral API
+  ASR         → Voxtral Mini 3B GGUF (LOCAL, swap mode) ← replaces Voxtral API
+  TTS         → edge-tts or Piper (LOCAL)
+  Tools       → OpenClaw skills (LOCAL)
+  🎯 Result: ZERO cloud API calls. Fully offline embodied AI.
+
+FUTURE (months):
+  Everything  → Single multimodal Mistral model (text + vision + audio + tools)
+  Size        → <4 GB quantized, runs on Orin Nano alongside robot stack
+  Latency     → <1s for ALL modalities
+  🎯 Result: True edge AI — works on a plane, in a hospital, anywhere.
+```
+
+### Why This Matters
+
+- **Privacy**: Patient data (healthcare use case) never leaves the device
+- **Latency**: No network round-trips — sub-second response for ALL modalities
+- **Reliability**: Works without internet — critical for robotics in the field
+- **Cost**: $0/month API costs after initial hardware purchase
+- **Mistral + NVIDIA**: Mistral builds the models that fit; NVIDIA builds the hardware that runs them. Together, they make embodied edge AI real.
 
 ---
 
@@ -384,7 +471,7 @@ For complete hardware setup instructions, see [docs/ORIN-REACHY-SETUP.md](docs/O
 
 | Prize | How We Hit It |
 |-------|--------------|
-| **Local 1st-3rd** | Full multi-agent architecture — edge + cloud, robot on the table |
+| **Local 1st-3rd** | Full multi-agent architecture — edge + cloud, physical robot demo |
 | **Best Voice (ElevenLabs)** | Voice loop: wake → Voxtral STT → LLM → ElevenLabs TTS → robot speaker |
 | **Best Use of Mistral Vibe** | Built the project with Vibe + created a Vibe skill for Reachy |
 | **Best Architectural Modification** | Split-brain: edge model for reactions, cloud for reasoning |
