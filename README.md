@@ -5,7 +5,7 @@
 > with Mistral API for vision (Pixtral), voice (Voxtral ASR), and complex reasoning (Mistral Large),
 > all embodied in a Reachy Mini robot that **sees, hears, speaks, thinks, and moves**.
 
-**[Mistral Worldwide Hackathon](https://mistral.ai/hackathon)** - Feb 28 – Mar 1, 2026, NYC\
+**[Mistral Worldwide Hackathon](https://mistral.ai/hackathon)** - Feb 28 – Mar 1, 2026, DC\
 Organized in partnership with **Weights & Biases**, **NVIDIA**, **AWS** · Awards by **ElevenLabs**, **Hugging Face**, **Tilde Research**
 
 > ⚠️ **Work in Progress** - Built in just 2 days (Feb 28–Mar 1). The core pipeline is working:
