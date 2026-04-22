@@ -1,0 +1,54 @@
+name: Build and Deploy Container App
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure Container Apps extension
+        run: |
+          az extension add --name containerapp --upgrade --yes
+
+      - name: Build and push image to ACR
+        id: build_push
+        run: |
+          set -euo pipefail
+
+          ACR_NAME="${{ vars.AZURE_CONTAINER_REGISTRY_NAME }}"
+          ACR_LOGIN_SERVER="$(az acr show --name "$ACR_NAME" --query loginServer --output tsv)"
+          IMAGE_TAG="${{ github.sha }}"
+          IMAGE_NAME="${ACR_LOGIN_SERVER}/${{ vars.AZURE_CONTAINER_APP_NAME }}:${IMAGE_TAG}"
+
+          az acr login --name "$ACR_NAME"
+          docker build --file src/Dockerfile --tag "$IMAGE_NAME" src
+          docker push "$IMAGE_NAME"
+
+          echo "image=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy image to Azure Container App
+        run: |
+          az containerapp update \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ steps.build_push.outputs.image }}" \
+            --set-env-vars \
+              FOUNDRY_ENDPOINT='${{ secrets.FOUNDRY_ENDPOINT }}' \
+              gpt_endpoint='${{ secrets.gpt_endpoint }}' \
+              embedding_endpoint='${{ secrets.embedding_endpoint }}' \
+              phi_4_endpoint='${{ secrets.phi_4_endpoint }}'
